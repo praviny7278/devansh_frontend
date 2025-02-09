@@ -27,7 +27,7 @@ class ViewProductState extends State<ViewSingleProduct> {
   final SessionManager _sessionManager = SessionManager();
   late String baseURL = 'http://localhost:8081';
   Map<String, dynamic>? _data;
-  String? accessToken;
+  String? _accessToken;
   bool isVisible = false;
 
   bool isTrueOptionBtn1 = false;
@@ -68,9 +68,15 @@ class ViewProductState extends State<ViewSingleProduct> {
 
   /// Access The Token
   Future<void> getAccessToken() async {
-    accessToken = await _sessionManager.getAccessToken();
-    setState(() {});
-    // print(accessToken);
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
   /// Get Product Data By Id

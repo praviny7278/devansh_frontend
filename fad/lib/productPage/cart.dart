@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -28,6 +29,7 @@ class ViewProductState extends State<CartItemsPage> {
   late String baseURL =
       "http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c";
   final TextEditingController searchController = TextEditingController();
+  final SessionManager _sessionManager = SessionManager();
   List<double> _itemsCount = [];
   List<double> cartItemPrice = [];
   Map<String, dynamic> _productData = {};
@@ -39,7 +41,6 @@ class ViewProductState extends State<CartItemsPage> {
 
   @override
   void dispose() {
-    // searchController.dispose();
     super.dispose();
   }
 
@@ -63,6 +64,19 @@ class ViewProductState extends State<CartItemsPage> {
             const Duration(hours: 1), // Persistent until manually dismissed
       ),
     );
+  }
+
+  /// Get Access Token
+  Future<void> getAccessToken() async {
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
   /// Get Product Data From API

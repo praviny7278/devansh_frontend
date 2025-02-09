@@ -33,11 +33,12 @@ class MenuItems extends StatefulWidget {
 class _ItemState extends State<MenuItems> {
   final ScrollController _scrollController = ScrollController();
   final SessionManager _sessionManager = SessionManager();
+
   List<dynamic> _itemsList = [];
   int limit = 5;
   String sortBy = '';
   String sortOption = "";
-  String? accessToken;
+  String? _accessToken;
   final productUrl = 'http://localhost:8081/product/v1/products';
 
   @override
@@ -48,10 +49,10 @@ class _ItemState extends State<MenuItems> {
       if (_scrollController.position.maxScrollExtent ==
           _scrollController.position.pixels) {
         limit += 5;
-        fetchAlbum();
+        fetProductData();
       }
     });
-    fetchAlbum(); // Fetch data when the widget is initialized
+    fetProductData(); // Fetch data when the widget is initialized
   }
 
   @override
@@ -60,13 +61,21 @@ class _ItemState extends State<MenuItems> {
     super.dispose();
   }
 
+  /// Access The Token
   Future<void> getAccessToken() async {
-    accessToken = await _sessionManager.getAccessToken();
-    setState(() {});
-    print(accessToken);
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
-  Future<void> fetchAlbum() async {
+  /// Get Access Token
+  Future<void> fetProductData() async {
     final baseURL = Uri.parse(productUrl);
     final response = await http.get(
       (baseURL),
@@ -91,12 +100,14 @@ class _ItemState extends State<MenuItems> {
     }
   }
 
+  /// Page refresh function
   Future<void> _refreshPage() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    fetchAlbum(); // Fetch data again when the page is refreshed
+    fetProductData(); // Fetch data again when the page is refreshed
     print('object');
   }
 
+  /// Sort product according Ascending and Descending
   void sortProduct(String option) {
     setState(() {
       sortOption = option;
@@ -105,46 +116,14 @@ class _ItemState extends State<MenuItems> {
         setState(() {
           sortBy = 'desc';
         });
-        fetchAlbum();
+        fetProductData();
       } else if (option == "z_to_a") {
         setState(() {
           sortBy = 'asc';
         });
-        fetchAlbum();
+        fetProductData();
       } else if (option == "low_to_high") {
       } else if (option == "high_to_low") {}
-    });
-  }
-
-  void _showOverlay(BuildContext context, String text) {
-    OverlayState overlayState = Overlay.of(context);
-    OverlayEntry overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 59,
-        left: MediaQuery.of(context).size.width * 0.25,
-        right: MediaQuery.of(context).size.width * 0.25,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            alignment: Alignment.center,
-            padding:
-                const EdgeInsets.only(left: 10, right: 10, top: 4, bottom: 4),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(text),
-          ),
-        ),
-      ),
-    );
-
-    overlayState.insert(overlayEntry);
-
-    Timer(const Duration(seconds: 2), () {
-      overlayEntry.remove();
     });
   }
 
@@ -161,6 +140,7 @@ class _ItemState extends State<MenuItems> {
           },
         ),
         actions: [
+          /// Option for sorting in various type
           PopupMenuButton<String>(
               icon: const Icon(Icons.sort),
               onSelected: (option) => sortProduct(option),
@@ -179,8 +159,11 @@ class _ItemState extends State<MenuItems> {
         onRefresh: _refreshPage,
         child: _itemsList.isEmpty
             ? const Center(
+                /// Refresh indicator
                 child: CircularProgressIndicator(),
               )
+
+            /// Generating the gridview
             : GridView.builder(
                 controller: _scrollController,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -191,6 +174,7 @@ class _ItemState extends State<MenuItems> {
                 ),
                 itemCount: _itemsList.length,
                 itemBuilder: (context, index) {
+                  /// Declaration and Assign value in variables
                   final productName =
                       _itemsList[index]['name'] ?? "Not Provided";
                   // final productPrice =
@@ -198,6 +182,8 @@ class _ItemState extends State<MenuItems> {
                   final productPrice = '34';
                   final productImg =
                       _itemsList[index]['image'] ?? 'assets/milk.jpg';
+
+                  /// Product container
                   return GridTile(
                     child: Stack(
                       children: <Widget>[
@@ -218,6 +204,7 @@ class _ItemState extends State<MenuItems> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
+                                /// Product image
                                 Container(
                                   height: 145,
                                   // width: 140,
@@ -231,6 +218,8 @@ class _ItemState extends State<MenuItems> {
                                         : null,
                                   ),
                                 ),
+
+                                /// Product Title and Price container
                                 Container(
                                   color: Colors.transparent,
                                   width: MediaQuery.of(context).size.width * 1,
@@ -238,11 +227,14 @@ class _ItemState extends State<MenuItems> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     children: <Widget>[
+                                      /// Product Title container
                                       Container(
                                         width:
                                             MediaQuery.of(context).size.width *
                                                 1,
                                         alignment: Alignment.topLeft,
+
+                                        /// Product Title
                                         child: Text(
                                           '$productName',
                                           textAlign: TextAlign.start,
@@ -253,6 +245,8 @@ class _ItemState extends State<MenuItems> {
                                           maxLines: 2,
                                         ),
                                       ),
+
+                                      /// Product Price container
                                       Container(
                                         color: Colors.transparent,
                                         width:
@@ -275,10 +269,14 @@ class _ItemState extends State<MenuItems> {
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 2,
                                             ),
+
+                                            /// Product currency icon
                                             const Icon(
                                               Icons.currency_rupee,
                                               size: 17,
                                             ),
+
+                                            /// Product price
                                             Text(
                                               productPrice,
                                               textAlign: TextAlign.start,
@@ -294,6 +292,8 @@ class _ItemState extends State<MenuItems> {
                                     ],
                                   ),
                                 ),
+
+                                /// Button container for add to cart and favorite
                                 Container(
                                   margin: const EdgeInsets.only(
                                     top: 0,
@@ -305,6 +305,7 @@ class _ItemState extends State<MenuItems> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: <Widget>[
+                                      /// Button for add Product in Cart
                                       ElevatedButton(
                                         onPressed: () {
                                           Navigator.push(
@@ -336,22 +337,10 @@ class _ItemState extends State<MenuItems> {
                                           style: TextStyle(fontSize: 16),
                                         ),
                                       ),
+
+                                      /// Button for add Product in Favorite
                                       ElevatedButton(
-                                        onPressed: () {
-                                          String text = 'Added to Favorite';
-                                          _showOverlay(context, text);
-                                          // Navigator.push(
-                                          //   context,
-                                          //   MaterialPageRoute(
-                                          //     builder: (context) =>
-                                          //         ViewSingleProduct(
-                                          //       dataId: _itemsList['results']
-                                          //           [index]['id'],
-                                          //       dataCategory: "Shirt",
-                                          //     ),
-                                          //   ),
-                                          // );
-                                        },
+                                        onPressed: () {},
                                         style: ElevatedButton.styleFrom(
                                             padding: const EdgeInsets.fromLTRB(
                                                 9, 0, 9, 0),

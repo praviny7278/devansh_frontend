@@ -53,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<dynamic> _productData = [];
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
-  String? accessToken;
+  String? _accessToken;
   // String? customerName;
 
   @override
@@ -65,8 +65,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    // getAccessToken();
     fetchProductData();
-    getAccessToken();
+
     setAccessToken();
     fetchCustomerData();
     _subscription =
@@ -113,13 +114,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> setAccessToken() async {
-    await _sessionManager.setAccessToken('token');
+    await _sessionManager.setAccessToken('12345');
+    getAccessToken();
   }
 
   Future<void> getAccessToken() async {
-    accessToken = await _sessionManager.getAccessToken();
-    setState(() {});
-    // print(accessToken);
+    // print(await _sessionManager.getAccessToken());
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
   /// On Error Throw callback
@@ -255,18 +264,13 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         _isSearching = true;
         _searchResults = _productData
-            .where((item) => item['name']
+            .where((item) => (item['name'] ?? '')
                 .toString()
                 .toLowerCase()
                 .contains(query.toLowerCase()))
             .toList();
       });
-      print(_productData
-          .where((item) => item['name']
-              .toString()
-              .toLowerCase()
-              .contains(query.toLowerCase()))
-          .toList());
+      // print(_searchResults);
     }
   }
 
@@ -532,71 +536,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     color: const Color(0xFF7AB2B2),
                     height: (screenHeight * 1) - 254,
                     padding: const EdgeInsets.only(bottom: 0),
-                    width: MediaQuery.of(context).size.width * 1,
+                    width: MediaQuery.of(context).size.width * 1.0,
                     child: _isSearching
-
-                        /// On search view container
-                        ? ListView.builder(
-                            itemCount: _searchResults.length,
-                            itemBuilder: (context, index) {
-                              final item = _searchResults[index];
-                              final categoryName =
-                                  item[index]['name'] ?? 'Not Provided';
-                              final categoryImg =
-                                  item[index]['image'] ?? 'assets/milk.jpg';
-                              // print(_searchResults);
-                              return GestureDetector(
-                                /// Navigation to the Product page onClick
-                                onTap: () {
-                                  // print(_searchResults[index]);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ViewSingleProduct(
-                                        dataName: item[index]['productId'],
-                                        dataCategory: "category",
-                                      ),
-                                    ),
-                                  );
-                                },
-
-                                /// Product title and image container
-                                child: Container(
-                                  color: const Color(0xFFebeef2),
-                                  margin: const EdgeInsets.only(
-                                      top: 0, bottom: 1, left: 5, right: 5),
-                                  height: 60,
-                                  alignment: Alignment.centerLeft,
-                                  child: ListTile(
-                                    autofocus: true,
-
-                                    /// Product title
-                                    title: Text(
-                                      categoryName,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 2,
-                                    ),
-
-                                    /// Product image
-                                    leading: Container(
-                                      height: 40,
-                                      width: 40,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(5),
-                                        image: categoryImg != null
-                                            ? DecorationImage(
-                                                image:
-                                                    NetworkImage(categoryImg),
-                                                fit: BoxFit.fill,
-                                              )
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          )
+                        ? const Text('')
 
                         /// Normal view container
                         : GridView.builder(
@@ -688,6 +630,77 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ],
               ),
+              if (_isSearching)
+
+                /// On search view container
+
+                Positioned(
+                  bottom: 20,
+                  top: 100,
+                  left: 0,
+                  right: 0,
+                  child: ListView.builder(
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, index) {
+                      final item = _searchResults[index];
+                      final categoryName = item['name'] ?? 'Not Provided';
+                      final categoryImg = item['image'] ?? 'assets/milk.jpg';
+                      // print(_searchResults[index]);
+                      // print('_searchResults'););
+                      return GestureDetector(
+                        /// Navigation to the Product page onClick
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ViewSingleProduct(
+                                dataName: item['productId'],
+                                dataCategory: "category",
+                              ),
+                            ),
+                          );
+                        },
+
+                        /// Product title and image container
+                        child: Container(
+                          margin: const EdgeInsets.only(
+                              top: 0, bottom: 1, left: 0, right: 0),
+                          height: 60,
+                          alignment: Alignment.centerLeft,
+                          color: const Color(0xFF41FCFC),
+                          child: ListTile(
+                            autofocus: true,
+
+                            /// Product title
+                            title: Text(
+                              categoryName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+
+                            /// Product image
+                            leading: Container(
+                              height: 40,
+                              width: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                image: categoryImg.isNotEmpty
+                                    ? DecorationImage(
+                                        image: NetworkImage(categoryImg),
+                                        fit: BoxFit.fill,
+                                      )
+                                    : const DecorationImage(
+                                        image: AssetImage('assets/milk.jpg'),
+                                        fit: BoxFit.fill,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
             ],
           ),
         ),

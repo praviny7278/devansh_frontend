@@ -6,7 +6,7 @@ class SessionManager {
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = '';
   static const String _keyUserCartId = '';
-  static const String _accessToken = '';
+  static const String _accessToken = '12345';
 
   /// Set Access Token
   Future<void> setAccessToken(String token) async {
