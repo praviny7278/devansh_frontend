@@ -59,7 +59,7 @@ class ExpansionPanelListExample extends StatefulWidget {
 }
 
 class _ExpansionPanelListExampleState extends State<ExpansionPanelListExample> {
-  String orderURL = 'http://localhost:8083/order/v1/customer/1';
+  String orderURL = 'http://175.111.182.126:8083/order/v1/customer/1';
 
   ///
   List<OrderDetails> _data = [];

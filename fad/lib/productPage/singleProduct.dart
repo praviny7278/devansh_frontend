@@ -27,7 +27,7 @@ class ViewProductState extends State<ViewSingleProduct> {
   final SessionManager _sessionManager = SessionManager();
   late String baseURL = 'http://localhost:8081';
   Map<String, dynamic>? _data;
-  String? accessToken;
+  String? _accessToken;
   bool isVisible = false;
 
   bool isTrueOptionBtn1 = false;
@@ -68,7 +68,7 @@ class ViewProductState extends State<ViewSingleProduct> {
 
   /// Access The Token
   Future<void> getAccessToken() async {
-    accessToken = await _sessionManager.getAccessToken();
+    _accessToken = await _sessionManager.getAccessToken();
     setState(() {});
     // print(accessToken);
   }
@@ -110,14 +110,14 @@ class ViewProductState extends State<ViewSingleProduct> {
       final response = await http.post(
         Uri.parse('http://localhost:8083/cart/v1/1'),
         headers: {
-          // 'Authorization': 'Bearer $accessToken',
+          'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
         },
         body: jsonBody,
       );
 
       if (response.statusCode == 200) {
-        // print(response.body);
+        print(response.body);
       } else if (response.statusCode == 401) {
         throw Exception('Not Found: The resource does not exist');
       } else if (response.statusCode == 404) {
@@ -126,6 +126,7 @@ class ViewProductState extends State<ViewSingleProduct> {
         throw Exception("Failed to load data");
       }
     } catch (e) {
+      _showErrorSnackBar(fetchDataByName);
       print(e);
     }
   }
@@ -157,7 +158,8 @@ class ViewProductState extends State<ViewSingleProduct> {
           onPressed: () async {
             Map<String, dynamic> productData = {
               'productName': productName,
-              'quantity': productQty
+              'quantity': productQty,
+              'custom': {"frequency": "Everyday"},
             };
 
             await createCart(productData);

@@ -38,7 +38,7 @@ class _ItemState extends State<MenuItems> {
   String sortBy = '';
   String sortOption = "";
   String? accessToken;
-  final productUrl = 'http://localhost:8081/product/v1/products';
+  final productUrl = 'http://175.111.182.126:8081/product/v1/products';
 
   @override
   void initState() {

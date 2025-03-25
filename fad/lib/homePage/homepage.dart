@@ -47,14 +47,16 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _connectivityStatus = true;
 
   final String productBaseURL = 'http://localhost:8081/product/v1/products';
+
   final String customerBaseURL = 'http://localhost:8082/customer/v1/1';
 
   Map<String, dynamic> _customerData = {};
   List<dynamic> _productData = [];
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
-  String? accessToken;
-  // String? customerName;
+  String? _accessToken;
+  static const access_token =
+      'eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2dUh6YVUyNHEtODM2NktWNXpGcFBjR1VRQ3dGWDZzTkdySXpwN2o5SmlnIn0.eyJleHAiOjE3NDA2Njk0MzUsImlhdCI6MTc0MDY2OTEzNSwianRpIjoiNWJlMGNhZTMtMTdkNS00MjI3LWE1ZjgtOWNhOWEzZWE1OWIwIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9kZXZhbnNoIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjY2Y2QxYzk0LTYxY2QtNDJkNC1iZDA1LTYxNTZiNTUxOTg4YyIsInR5cCI6IkJlYXJlciIsImF6cCI6ImRldmFuc2gtYXV0aC1zZXJ2aWNlIiwic2lkIjoiNjQ2N2I4YjgtYzg2Yi00ZTA4LWJmOWEtNWI2OTU1OTJkN2IyIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vMTkyLjE2OC4wLjE4NDozMDAwLyJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJhZG1pbiIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciIsImRlZmF1bHQtcm9sZXMtZGV2YW5zaCJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6IkRldiBZYWRhdiIsInByZWZlcnJlZF91c2VybmFtZSI6ImRldl9hZG1pbiIsImdpdmVuX25hbWUiOiJEZXYiLCJmYW1pbHlfbmFtZSI6IllhZGF2In0.nQvtrnPORJalc06b2P9Vbp8J69cUiQJ2WOl4Gqufdd4nPZGKbjfyr-Gu6z0wdkTC8rCjUjzmyurw1Du-QmhXkfFjTG7FAo-jhfludpx5CIRxUktJsEBhS8exHbayuB1AdgzOzSsVr8X17IHYwBTHS2bg8_LP1XgC4D1MlrtvVlRUsMLjOoHwn6cHp_NTIGAd36ACg6J-XMtAumrkxre9QWDcmffFH1fAZcFZsqQh0KBANQPV6rF692uVXO5QQRDxclSdLmlnlyjuQQGgqlFZs63y2inLejZJ4dnV-uLLsVFH2LrbTHzSJlffxfLRkzrJvviYuL6KK3pgDGvNlQeW1w';
 
   @override
   void dispose() {
@@ -65,10 +67,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    fetchProductData();
-    getAccessToken();
+
     setAccessToken();
-    fetchCustomerData();
+
     _subscription =
         _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
     _checkInitialConnection();
@@ -91,35 +92,39 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _updateConnectionStatus(ConnectivityResult result) async {
-    setState(() {
-      switch (result) {
-        case ConnectivityResult.wifi:
-        case ConnectivityResult.mobile:
-          _connectionStatus = 'Internet connected';
-          _connectivityStatus = true;
-          break;
-        case ConnectivityResult.none:
-          _connectionStatus = 'No internet connection';
-          _connectivityStatus = false;
-          break;
-        default:
-          _connectionStatus = 'Unknown';
-          _connectivityStatus = false;
-          break;
-      }
-    });
+    setState(
+      () {
+        switch (result) {
+          case ConnectivityResult.wifi:
+          case ConnectivityResult.mobile:
+            _connectionStatus = 'Internet connected';
+            _connectivityStatus = true;
+            break;
+          case ConnectivityResult.none:
+            _connectionStatus = 'No internet connection';
+            _connectivityStatus = false;
+            break;
+          default:
+            _connectionStatus = 'Unknown';
+            _connectivityStatus = false;
+            break;
+        }
+      },
+    );
     print('Connection Status: $_connectionStatus');
     _showOverlay(context, _connectionStatus, _connectivityStatus);
   }
 
   Future<void> setAccessToken() async {
-    await _sessionManager.setAccessToken('token');
+    await _sessionManager.setAccessToken(access_token);
+    getAccessToken();
   }
 
   Future<void> getAccessToken() async {
-    accessToken = await _sessionManager.getAccessToken();
-    setState(() {});
-    // print(accessToken);
+    _accessToken = await _sessionManager.getAccessToken();
+    fetchProductData();
+    fetchCustomerData();
+    // print(_accessToken);
   }
 
   /// On Error Throw callback
@@ -135,6 +140,8 @@ class _MyHomePageState extends State<MyHomePage> {
             const Duration(hours: 1), // Persistent until manually dismissed
       ),
     );
+
+    // print("work");
   }
 
   /// Get Customer information
@@ -142,10 +149,10 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final response = await http.get(
         Uri.parse(customerBaseURL),
-        // headers: {
-        //   'Authorization': 'Bearer $accessToken',
-        //   'Content-Type': 'application/json',
-        // },
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -174,10 +181,10 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final response = await http.get(
         Uri.parse(productBaseURL),
-        // headers: {
-        //   'Authorization': 'Bearer $accessToken',
-        //   'Content-Type': 'application/json',
-        // },
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
       );
 
       if (response.statusCode == 200) {
