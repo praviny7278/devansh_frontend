@@ -38,8 +38,14 @@ class _ItemState extends State<MenuItems> {
   int limit = 5;
   String sortBy = '';
   String sortOption = "";
+
+  String? accessToken;
+  final productUrl = 'http://175.111.182.125:8081/product/v1/products';
+
+
   String? _accessToken;
   final productUrl = 'http://localhost:8081/product/v1/products';
+
 
   @override
   void initState() {
@@ -165,45 +171,68 @@ class _ItemState extends State<MenuItems> {
 
             /// Generating the gridview
             : GridView.builder(
-                controller: _scrollController,
+                // controller: _scrollController,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 0,
-                  childAspectRatio: .69,
-                  mainAxisSpacing: 0,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 0.69,
+                  mainAxisSpacing: 8,
                 ),
                 itemCount: _itemsList.length,
                 itemBuilder: (context, index) {
                   /// Declaration and Assign value in variables
                   final productName =
                       _itemsList[index]['name'] ?? "Not Provided";
-                  // final productPrice =
-                  //     _itemsList[index]['price']['price'].toString();
-                  final productPrice = '34';
+                  final productPrice =
+                      _itemsList[index]['price']['price'].toString() ?? "Not Provided";
+                  // final productPrice = '34' ?? 'Unknown';
                   final productImg =
                       _itemsList[index]['image'] ?? 'assets/milk.jpg';
+
+                  return GestureDetector(
+
 
                   /// Product container
                   return GridTile(
                     child: Stack(
                       children: <Widget>[
                         GestureDetector(
+
                           onTap: () {},
-                          child: Container(
-                            margin: const EdgeInsets.fromLTRB(5, 4, 5, 4),
-                            padding: const EdgeInsets.only(
-                              top: 10,
-                              bottom: 7,
-                              left: 10,
-                              right: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(7),
-                              color: Colors.white.withOpacity(0.6),
+                          child: Card(
+                            color: Colors.white.withOpacity(0.6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(7)
                             ),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
+
+                                /// Product Image
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(1.0),
+                                    child: ClipRRect (
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        productImg,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  )
+                                ),
+                                /// Product Title and Price column
+                                Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 4.0),
+                                    child:  Column(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: <Widget>[
+                                        /// Title container
+                                        Container(
+                                        width: MediaQuery.of(context).size.width * 1,
+
                                 /// Product image
                                 Container(
                                   height: 145,
@@ -231,7 +260,7 @@ class _ItemState extends State<MenuItems> {
                                       Container(
                                         width:
                                             MediaQuery.of(context).size.width *
-                                                1,
+
                                         alignment: Alignment.topLeft,
 
                                         /// Product Title
@@ -239,11 +268,19 @@ class _ItemState extends State<MenuItems> {
                                           '$productName',
                                           textAlign: TextAlign.start,
                                           style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 2,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 2,
+                                          ),
                                         ),
+
+                                        /// Price container
+                                        Container(
+                                        color: Colors.transparent, width:
+                                        MediaQuery.of(context).size.width * 1,
+                                        margin: const EdgeInsets.fromLTRB(0, 3, 5, 0),
+
                                       ),
 
                                       /// Product Price container
@@ -254,18 +291,17 @@ class _ItemState extends State<MenuItems> {
                                                 1,
                                         margin: const EdgeInsets.fromLTRB(
                                             0, 3, 5, 0),
+
                                         child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: <Widget>[
                                             const Text(
                                               'Price : ',
                                               textAlign: TextAlign.start,
                                               style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold),
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 2,
                                             ),
@@ -281,13 +317,19 @@ class _ItemState extends State<MenuItems> {
                                               productPrice,
                                               textAlign: TextAlign.start,
                                               style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              ),
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 2,
                                             ),
                                           ],
                                         ),
+
+                                        ),
+                                      ],
+                                    ),
+
                                       ),
                                     ],
                                   ),
@@ -297,15 +339,50 @@ class _ItemState extends State<MenuItems> {
                                 Container(
                                   margin: const EdgeInsets.only(
                                     top: 0,
+
                                   ),
-                                  width:
-                                      MediaQuery.of(context).size.width * 0.99,
-                                  alignment: Alignment.topLeft,
-                                  child: Row(
+                                /// Buttons for Add to cart & Buy
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
+                                  child:  Row(
                                     mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    MainAxisAlignment.spaceBetween,
                                     children: <Widget>[
                                       /// Button for add Product in Cart
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          String text = 'Added to Favorite';
+                                          _showOverlay(context, text);
+                                          // Navigator.push(
+                                          //   context,
+                                          //   MaterialPageRoute(
+                                          //     builder: (context) =>
+                                          //         ViewSingleProduct(
+                                          //       dataId: _itemsList['results']
+                                          //           [index]['id'],
+                                          //       dataCategory: "Shirt",
+                                          //     ),
+                                          //   ),
+                                          // );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                            padding: const EdgeInsets.fromLTRB(
+                                                2, 0, 2, 0),
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius:
+                                              BorderRadius.horizontal(
+                                                right: Radius.circular(10),
+                                                left: Radius.circular(10),
+                                              ),
+                                            ),
+                                            backgroundColor: Colors.white.withOpacity(0.6),
+
+                                        ),
+                                        child: const Icon(
+                                          Icons.favorite,
+                                          color: Colors.red,
+                                        )
+                                      ),
                                       ElevatedButton(
                                         onPressed: () {
                                           Navigator.push(
@@ -313,11 +390,11 @@ class _ItemState extends State<MenuItems> {
                                             MaterialPageRoute(
                                               builder: (context) =>
                                                   ViewSingleProduct(
-                                                dataName: _itemsList[index]
+                                                    dataName: _itemsList[index]
                                                     ['name'],
-                                                dataCategory: _itemsList[index]
+                                                    dataCategory: _itemsList[index]
                                                     ['catagories'],
-                                              ),
+                                                  ),
                                             ),
                                           );
                                         },
@@ -325,7 +402,7 @@ class _ItemState extends State<MenuItems> {
                                           padding: const EdgeInsets.all(0),
                                           shape: const RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.horizontal(
+                                            BorderRadius.horizontal(
                                               left: Radius.circular(7),
                                               right: Radius.circular(7),
                                             ),
@@ -337,6 +414,7 @@ class _ItemState extends State<MenuItems> {
                                           style: TextStyle(fontSize: 16),
                                         ),
                                       ),
+
 
                                       /// Button for add Product in Favorite
                                       ElevatedButton(
@@ -358,16 +436,14 @@ class _ItemState extends State<MenuItems> {
                                           style: TextStyle(fontSize: 16),
                                         ),
                                       ),
+
                                     ],
                                   ),
-                                ),
+                                )
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
+                        );
                 },
               ),
       ),

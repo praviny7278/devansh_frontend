@@ -1,12 +1,27 @@
+import 'package:fad/auth/register_page.dart';
 import 'package:fad/homePage/homepage.dart';
+import 'package:fad/productPage/check_out_page.dart';
+import 'package:fad/productPage/order_history.dart';
+import 'package:fad/productPage/order_list_item_history.dart';
+import 'package:fad/sessionManager/sessionmanager.dart';
+import 'package:fad/setting.dart';
+import 'package:fad/splashScreen/splash_screen.dart';
+import 'package:fad/user_info_edit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'auth/login.dart';
+import 'auth/otp_validation.dart';
+
 
 void main() {
-  runApp(const MyApp());
+  runApp( ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+   MyApp({super.key});
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -14,9 +29,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Home(),
     );
-    // TODO: implement build
   }
 }
+
+
+
+
 // import 'package:fad/widget/error_throw_widget.dart';
 // import 'package:flutter/material.dart';
 //
