@@ -68,9 +68,19 @@ class ViewProductState extends State<ViewSingleProduct> {
 
   /// Access The Token
   Future<void> getAccessToken() async {
+
     _accessToken = await _sessionManager.getAccessToken();
     setState(() {});
     // print(accessToken);
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
   /// set User Cart Id

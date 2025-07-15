@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+
 import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:fad/setting.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class EditUserDetails extends StatefulWidget {
 }
 
 class _EditUserState extends State<EditUserDetails> {
+
   final SessionManager _sessionManager = SessionManager();
 
   final _formKey = GlobalKey<FormState>();
@@ -59,6 +61,11 @@ class _EditUserState extends State<EditUserDetails> {
 
 
 
+  final TextEditingController searchController = TextEditingController();
+  final SessionManager _sessionManager = SessionManager();
+  String? _accessToken;
+
+
   @override
   void dispose() {
     _firsNameController.dispose();
@@ -70,6 +77,19 @@ class _EditUserState extends State<EditUserDetails> {
     _cityNameController.dispose();
     _pinCodeController.dispose();
     super.dispose();
+  }
+
+  /// Access The Token
+  Future<void> getAccessToken() async {
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
   }
 
   @override

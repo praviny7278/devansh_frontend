@@ -27,13 +27,23 @@ const String customerBaseURL = 'http://175.111.182.125:8082/customer/v1/1';
 
 final connectivityProvider = StateProvider<bool>((ref) => true);
 
+
 ///
 final sessionManagerProvider = Provider<SessionManager>((ref) {
   return SessionManager();
 });
 
+  Map<String, dynamic> _customerData = {};
+  List<dynamic> _productData = [];
+  List<dynamic> _searchResults = [];
+  bool _isSearching = false;
+  String? _accessToken;
+  // String? customerName;
+
+
 final productProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final sessionManager = ref.read(sessionManagerProvider);
+
 
   // Get stored access token
   String? accessToken = await sessionManager.getAccessToken();
@@ -43,6 +53,19 @@ final productProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   if (accessToken == null) {
     accessToken = "mock_access_token_123"; // Replace with real token logic
     await sessionManager.setAccessToken(accessToken);
+
+  @override
+  void initState() {
+    super.initState();
+    // getAccessToken();
+    fetchProductData();
+
+    setAccessToken();
+    fetchCustomerData();
+    _subscription =
+        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _checkInitialConnection();
+
   }
 
 
@@ -57,6 +80,7 @@ final customerProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) 
   String? accessToken = await sessionManager.getAccessToken();
   String? userId = await sessionManager.getUserId();
 
+
   // If access token is null, set a new one
   if (accessToken == null) {
     accessToken = "mock_access_token_123"; // Replace with real token logic
@@ -65,6 +89,25 @@ final customerProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) 
 
   return await fetchCustomerData(accessToken, userId!);
 });
+
+  Future<void> setAccessToken() async {
+    await _sessionManager.setAccessToken('12345');
+    getAccessToken();
+  }
+
+  Future<void> getAccessToken() async {
+    // print(await _sessionManager.getAccessToken());
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
+  }
+
 
 
 
@@ -220,13 +263,19 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
     } else {
       setState(() {
         _isSearching = true;
+
         _searchResults = productData
             .where((item) => item['name']
+
+        _searchResults = _productData
+            .where((item) => (item['name'] ?? '')
                 .toString()
                 .toLowerCase()
                 .contains(query.toLowerCase()))
             .toList();
       });
+
+      // print(_searchResults);
     }
   }
 
@@ -574,8 +623,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                     color: const Color(0xFF7AB2B2),
                     height: (screenHeight * 1) - 253,
                     padding: const EdgeInsets.only(bottom: 0),
-                    width: MediaQuery.of(context).size.width * 1,
+                    width: MediaQuery.of(context).size.width * 1.0,
                     child: _isSearching
+
 
                         /// On search view container
                         ? productAsyncValue.when(
@@ -595,12 +645,41 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                                   if (_isSearching) {
                                     clearSearch();
                                   }
+
+                        ? const Text('')
+
+                        /// Normal view container
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 0,
+                              childAspectRatio: 0.76,
+                              crossAxisSpacing: 0,
+                            ),
+                            itemCount: _productData.length,
+                            itemBuilder: (context, index) {
+                              final prodTitle =
+                                  _productData[index]['name'] ?? "Not Provided";
+                              final prodImage = _productData[index]['image'] ??
+                                  "assets/milk.jpg";
+                              return GestureDetector(
+                                /// Navigation to the Product page onClick
+                                onTap: () {
+
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ViewSingleProduct(
+
                                           dataName: product['name'],
                                           dataCategory: product['catagories']
+
+                                        dataName: _productData[index]['name'],
+                                        dataCategory: _productData[index]
+                                            ['catagories'],
+
                                       ),
                                     ),
                                   );
@@ -608,6 +687,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
 
                                 /// Product title and image container
                                 child: Container(
+
                                   color: const Color(0xFFebeef2),
                                   margin: const EdgeInsets.only(
                                       top: 0, bottom: 1, left: 5, right: 5),
@@ -679,6 +759,57 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                                     dataName: productData[index]['name'],
                                     dataCategory: productData[index]
                                     ['catagories'],
+
+                                  margin:
+                                      const EdgeInsets.fromLTRB(10, 5, 10, 10),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      /// Product image
+                                      Container(
+                                        margin: const EdgeInsets.all(10),
+                                        height:
+                                            MediaQuery.of(context).size.height *
+                                                0.21,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(5),
+                                          image: prodImage != null
+                                              ? DecorationImage(
+                                                  image:
+                                                      NetworkImage(prodImage),
+                                                  fit: BoxFit.fill,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+
+                                      /// Product title
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: 10,
+                                            right: 10,
+                                            top: 10,
+                                            bottom: 5),
+                                        child: Text(
+                                          '$prodTitle',
+                                          textAlign: TextAlign.start,
+                                          style: TextStyle(
+                                            color:
+                                                Colors.black45.withOpacity(0.9),
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          maxLines: 2,
+                                        ),
+                                      )
+                                    ],
+
                                   ),
                                 ),
                               );
@@ -758,6 +889,77 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                   ),
                 ],
               ),
+              if (_isSearching)
+
+                /// On search view container
+
+                Positioned(
+                  bottom: 20,
+                  top: 100,
+                  left: 0,
+                  right: 0,
+                  child: ListView.builder(
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, index) {
+                      final item = _searchResults[index];
+                      final categoryName = item['name'] ?? 'Not Provided';
+                      final categoryImg = item['image'] ?? 'assets/milk.jpg';
+                      // print(_searchResults[index]);
+                      // print('_searchResults'););
+                      return GestureDetector(
+                        /// Navigation to the Product page onClick
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ViewSingleProduct(
+                                dataName: item['productId'],
+                                dataCategory: "category",
+                              ),
+                            ),
+                          );
+                        },
+
+                        /// Product title and image container
+                        child: Container(
+                          margin: const EdgeInsets.only(
+                              top: 0, bottom: 1, left: 0, right: 0),
+                          height: 60,
+                          alignment: Alignment.centerLeft,
+                          color: const Color(0xFF41FCFC),
+                          child: ListTile(
+                            autofocus: true,
+
+                            /// Product title
+                            title: Text(
+                              categoryName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+
+                            /// Product image
+                            leading: Container(
+                              height: 40,
+                              width: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                image: categoryImg.isNotEmpty
+                                    ? DecorationImage(
+                                        image: NetworkImage(categoryImg),
+                                        fit: BoxFit.fill,
+                                      )
+                                    : const DecorationImage(
+                                        image: AssetImage('assets/milk.jpg'),
+                                        fit: BoxFit.fill,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
             ],
           ),
         ),

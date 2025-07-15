@@ -25,10 +25,18 @@ class CartCheckOutPage extends StatefulWidget {
 }
 
 class ViewProductState extends State<CartCheckOutPage> {
+
   final SessionManager _sessionManager = SessionManager();
 
 
   final String _orderCreateURL = 'http://175.111.182.125:8083/order/v1/create';
+
+  late String baseURL =
+      "http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c";
+  String orderURL = 'http://localhost:8083/order/v1/create';
+  final SessionManager _sessionManager = SessionManager();
+
+
   Map<String, dynamic> _productData = {};
   String _cartTotalPrice = '';
 
@@ -109,6 +117,7 @@ class ViewProductState extends State<CartCheckOutPage> {
     );
   }
 
+
   /// on Register successfully
   void showCustomSuccessDialog(BuildContext context) {
     BuildContext? dialogContext;
@@ -158,6 +167,19 @@ class ViewProductState extends State<CartCheckOutPage> {
         );
       },
     );
+
+  /// Get Access Token
+  Future<void> getAccessToken() async {
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
+    }
+
   }
 
   /// Get Product Data From API

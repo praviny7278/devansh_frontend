@@ -40,7 +40,6 @@ class ViewProductState extends State<CartItemsPage> {
 
   @override
   void dispose() {
-    // searchController.dispose();
     super.dispose();
   }
 
@@ -79,6 +78,19 @@ class ViewProductState extends State<CartItemsPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
+    }
+  }
+
+  /// Get Access Token
+  Future<void> getAccessToken() async {
+    try {
+      String? token = await _sessionManager.getAccessToken();
+      setState(() {
+        _accessToken = token;
+      });
+      print(_accessToken);
+    } catch (e) {
+      print(e);
     }
   }
 
