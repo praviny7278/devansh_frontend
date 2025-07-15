@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fad/productPage/cart.dart';
@@ -25,10 +26,13 @@ class ViewSingleProduct extends StatefulWidget {
 
 class ViewProductState extends State<ViewSingleProduct> {
   final SessionManager _sessionManager = SessionManager();
-  late String baseURL = 'http://localhost:8081';
+  late String productBaseURL = 'http://175.111.182.125:8081';
   Map<String, dynamic>? _data;
   String? _accessToken;
   bool isVisible = false;
+  bool isLoading = false;
+  bool isCartCreated = false;
+  String userId = '';
 
   bool isTrueOptionBtn1 = false;
   bool isTrueOptionBtn2 = false;
@@ -46,22 +50,18 @@ class ViewProductState extends State<ViewSingleProduct> {
   @override
   void initState() {
     super.initState();
-    baseURL = 'http://localhost:8081/product/v1/product/${widget.dataName}';
+    productBaseURL = 'http://175.111.182.125:8081/product/v1/product/${widget.dataName}';
+    getUserId();
     fetchDataByName();
     getAccessToken();
+    // _showOverlay(context);
   }
 
   /// On Error Throw callback
-  void _showErrorSnackBar(VoidCallback retryFunction) {
+  void _showErrorSnackBar() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Something went wrong.'),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => retryFunction, // Retry the operation
-        ),
-        duration:
-            const Duration(hours: 1), // Persistent until manually dismissed
+      const SnackBar(
+        content: Text('Something went wrong.'),
       ),
     );
   }
@@ -73,42 +73,76 @@ class ViewProductState extends State<ViewSingleProduct> {
     // print(accessToken);
   }
 
-  /// Get Product Data By Id
+  /// set User Cart Id
+  Future<void> setUserCartId(String userCartId) async {
+    await _sessionManager.setUserCartId(userCartId);
+    // print(accessToken);
+  }
+
+  /// Get User Id
+  Future<void> getUserId() async {
+    try {
+      String? id = await _sessionManager.getUserId();
+      if ( id != null && id.isNotEmpty) {
+        setState(() {
+          userId = id;
+        });
+      } else {
+        throw ('User id not found!');
+      }
+    } catch(e) {
+      print(e);
+    }
+    // print(accessToken);
+  }
+
+  /// Get Product data by product name
   Future<void> fetchDataByName() async {
+    setState(() {
+      isLoading = true;
+    });
+    // print(widget.dataName);
     try {
       final response = await http.get(
-        Uri.parse(baseURL),
+        Uri.parse(productBaseURL),
       );
 
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
             _data = jsonDecode(response.body);
+            isLoading = false;
           });
         }
       } else if (response.statusCode == 401) {
-        throw Exception('Not Found: The resource does not exist');
+        throw ('Not Found: The resource does not exist');
       } else if (response.statusCode == 404) {
-        throw Exception('Failed to load data: ${response.reasonPhrase}');
+        throw ('Failed to load data: ${response.reasonPhrase.toString()}');
       } else {
-        throw Exception("Failed to load data");
+        throw ("Failed to load data");
       }
     } catch (e) {
-      _showErrorSnackBar(fetchDataByName);
+      _showErrorSnackBar();
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   /// Create The Cart According The Product
   Future<void> createCart(Map<String, dynamic> orderData) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    print('user Id: $userId');
     try {
       List<dynamic> productList = [];
-
       productList.add(orderData);
-      // print(productList);
       String jsonBody = jsonEncode(productList);
 
       final response = await http.post(
-        Uri.parse('http://localhost:8083/cart/v1/1'),
+        Uri.parse('http://175.111.182.125:8083/cart/v1/$userId'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -117,19 +151,64 @@ class ViewProductState extends State<ViewSingleProduct> {
       );
 
       if (response.statusCode == 200) {
-        print(response.body);
+        Map<String, dynamic> tempData = jsonDecode(response.body);
+        setUserCartId(tempData['id']);
+        setState(() {
+          isLoading = false;
+          isCartCreated = true;
+        });
+        print('done!');
       } else if (response.statusCode == 401) {
-        throw Exception('Not Found: The resource does not exist');
+        throw ('Not Found: The resource does not exist');
       } else if (response.statusCode == 404) {
-        throw Exception('Failed to load data: ${response.reasonPhrase}');
+        throw ('Failed to load data: ${response.reasonPhrase.toString()}');
       } else {
-        throw Exception("Failed to load data");
+        throw ("Failed to load data");
       }
     } catch (e) {
-      _showErrorSnackBar(fetchDataByName);
+      _showErrorSnackBar();
+      setState(() {
+        isLoading = false;
+      });
       print(e);
     }
   }
+
+  /// Show an overlay popup on successful
+  void _showOverlay(BuildContext context) {
+    OverlayState overlayState = Overlay.of(context);
+    OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 55,
+        left: MediaQuery.of(context).size.width * 0.15,
+        width: MediaQuery.of(context).size.width * 0.65,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.greenAccent,
+            ),
+            padding: const EdgeInsets.all(7),
+            child: const Text("Added to cart successfully"),
+          ),
+        ),
+      ),
+    );
+
+    overlayState.insert(overlayEntry);
+
+    Timer(const Duration(seconds: 2), () {
+      overlayEntry.remove();
+    });
+  }
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +222,8 @@ class ViewProductState extends State<ViewSingleProduct> {
     const productQty = 1;
 
     return Scaffold(
+
+      /// Button to add product in the cart
       bottomNavigationBar: Container(
         margin: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
         decoration: const BoxDecoration(
@@ -154,27 +235,56 @@ class ViewProductState extends State<ViewSingleProduct> {
           ),
           color: Colors.green,
         ),
+
         child: TextButton(
           onPressed: () async {
+
+            String frequencyType = isActiveSubButton ? 'Subscription' : 'One Time Purchase';
+
+            String duration = '';
+            if (isActiveSubButton) {
+              if (isTrueOptionBtn1) {
+                duration = '1 week';
+              } else if (isTrueOptionBtn2) {
+                duration = '2 week';
+              }else if (isTrueOptionBtn3) {
+                duration = '3 week';
+              }else if (isTrueOptionBtn4) {
+                duration = '1 Month';
+              }
+            }
+            Map<String, dynamic> customData = {
+              'frequency': frequencyType,
+            };
+
+            if (isActiveSubButton && duration.isNotEmpty) {
+              customData['duration'] = duration;
+            }
+
+
             Map<String, dynamic> productData = {
               'productName': productName,
               'quantity': productQty,
-              'custom': {"frequency": "Everyday"},
+              'custom': {"frequency" : customData},
             };
 
             await createCart(productData);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const CartItemsPage()),
-            );
+            if (isCartCreated) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CartItemsPage()),
+              );
 
-            // print('object');
+              _showOverlay(context);
+            }
+
+            // print(productData);
           },
           child: const Text('Add'),
         ),
       ),
       appBar: AppBar(
-        title: const Text('Your Information'),
+        title: const Text('Product'),
         backgroundColor: const Color(0xFFCDE8E5),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -184,7 +294,8 @@ class ViewProductState extends State<ViewSingleProduct> {
         ),
       ),
       backgroundColor: const Color(0xFF7AB2B2),
-      body: ListView.builder(
+      body: isLoading ? const Center(child: CircularProgressIndicator(),)
+          : ListView.builder(
         shrinkWrap: true,
         itemCount: _data != null ? 1 : 0,
         itemBuilder: (context, index) {
@@ -203,9 +314,9 @@ class ViewProductState extends State<ViewSingleProduct> {
                     borderRadius: BorderRadius.circular(10),
                     image: productImg != null
                         ? DecorationImage(
-                            image: NetworkImage(productImg),
-                            fit: BoxFit.fill,
-                          )
+                      image: NetworkImage(productImg),
+                      fit: BoxFit.fill,
+                    )
                         : null, // Handle null image
                   ),
                 ),
@@ -236,7 +347,7 @@ class ViewProductState extends State<ViewSingleProduct> {
                       'Category',
                       textAlign: TextAlign.start,
                       style:
-                          TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       productCategory,
@@ -248,7 +359,7 @@ class ViewProductState extends State<ViewSingleProduct> {
                 ),
               ),
 
-              /// Price Container ////
+              /// Price and Quantity Container ////
               Container(
                 // width: MediaQuery.of(context).size.width * 0.8,
                 margin: const EdgeInsets.only(top: 20, left: 10, right: 20),
@@ -268,6 +379,8 @@ class ViewProductState extends State<ViewSingleProduct> {
                         ),
                       ),
                     ),
+
+                    /// Price and Quantity
                     Container(
                       // color: Colors.red,
                       width: MediaQuery.of(context).size.width * 0.4,
@@ -277,7 +390,7 @@ class ViewProductState extends State<ViewSingleProduct> {
                         children: <Widget>[
                           const Icon(Icons.currency_rupee),
                           Text(
-                            '$productPrice/$productQty $productUnit',
+                            '$productPrice/$productUnit',
                             style: const TextStyle(fontSize: 19),
                           )
                         ],
@@ -348,7 +461,7 @@ class ViewProductState extends State<ViewSingleProduct> {
                             },
                             style: TextButton.styleFrom(
                               padding:
-                                  const EdgeInsets.only(bottom: 20, top: 20),
+                              const EdgeInsets.only(bottom: 20, top: 20),
                               backgroundColor: isActiveOTPButton
                                   ? Colors.green
                                   : Colors.blue,
@@ -380,7 +493,7 @@ class ViewProductState extends State<ViewSingleProduct> {
                         // height: 50,
                         margin: const EdgeInsets.only(top: 30, bottom: 8),
                         child: const Text(
-                          'Recieve on',
+                          'Receive on',
                           textAlign: TextAlign.left,
                           style: TextStyle(
                               fontSize: 17, fontWeight: FontWeight.bold),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,9 +26,8 @@ class CartItemsPage extends StatefulWidget {
 }
 
 class ViewProductState extends State<CartItemsPage> {
-  late String baseURL =
-      "http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c";
   final TextEditingController searchController = TextEditingController();
+  final SessionManager _sessionManager = SessionManager();
   List<double> _itemsCount = [];
   List<double> cartItemPrice = [];
   Map<String, dynamic> _productData = {};
@@ -36,6 +36,7 @@ class ViewProductState extends State<CartItemsPage> {
   Map<int, double> updatedQuantities = {};
   bool _cartStatus = false;
   String? _accessToken;
+  String? _cartId = "";
 
   @override
   void dispose() {
@@ -46,47 +47,60 @@ class ViewProductState extends State<CartItemsPage> {
   @override
   void initState() {
     super.initState();
-    // baseURL = 'https://fakestoreapi.com/products/${widget.productId}';
-    fetchCartDataByID();
+    getUserCartId();
+  }
+
+  /// Get Cart id
+  Future<void> getUserCartId() async {
+
+    try {
+      String? id = await _sessionManager.getUserCartId();
+
+      if (id != null && id.isNotEmpty) {
+        _cartId = id;
+            fetchCartDataByID(_cartId!);
+        print(_cartId);
+      } else {
+        throw ('Login first!');
+      }
+    } catch(e) {
+
+    }
+
+
   }
 
   /// On Error Throw callback
-  void _showErrorSnackBar(VoidCallback retryFunction) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Something went wrong.'),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => retryFunction, // Retry the operation
+  Future<void> _onError(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
         ),
-        duration:
-            const Duration(hours: 1), // Persistent until manually dismissed
-      ),
-    );
+      );
+    }
   }
 
   /// Get Product Data From API
-  Future<void> fetchCartDataByID() async {
+  Future<void> fetchCartDataByID(String cartId) async {
     try {
-      final response = await http.get(Uri.parse(baseURL));
+      final response = await http.get(Uri.parse('http://175.111.182.125:8083/cart/v1/$cartId'));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
             _productData = jsonDecode(response.body);
-            print(_cartStatus);
-
             _cartStatus = _productData['status'];
+            print(_cartStatus);
             _itemsCount = List<double>.from(
                 _productData['lineItems'].map((item) => item['quantity']));
             cartItemPrice = List<double>.from(_productData['lineItems'].map(
                 (item) => (item['quantity'] * item['product']['price']['price'])
                     .toDouble()));
           });
-
-          // print(_productData['lineItems'].length);
         } else {
           // Handle empty response body
-          print('Empty response body');
+          throw Exception('Empty response body');
         }
       } else {
         throw Exception("Failed to load data");
@@ -107,15 +121,12 @@ class ViewProductState extends State<CartItemsPage> {
         'quantity': entry.value, // Updated quantity
       });
     }
-    // print(updatedCartItems);
     String jsonBody = jsonEncode(updatedCartItems);
-
-    const String postUrl = ""; // Your POST API endpoint
 
     try {
       final response = await http.put(
         Uri.parse(
-            'http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c/updateCart'),
+            'http://175.111.182.125:8083/cart/v1/$_cartId/updateCart'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -124,17 +135,18 @@ class ViewProductState extends State<CartItemsPage> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // print("Cart updated successfully: ${response.body}");
-        if ((context as Element).mounted) {
-          _showOverlay(context); // Show success overlay
-        }
+        print("Cart updated successfully: ${response.body}");
+        // if ((context as Element).mounted) {
+        //   _showOverlay(context); // Show success overlay
+        // }
         updatedQuantities.clear(); // Clear the tracking map
       } else {
-        print(
-            "Failed to update cart: ${response.statusCode} - ${response.body}");
+        print("Failed to update cart: ${response.statusCode} - ${response.body}");
+        throw ('Failed to update cart!');
       }
     } catch (e) {
       print("Error updating cart: $e");
+      _onError(e.toString());
     }
   }
 
@@ -143,7 +155,7 @@ class ViewProductState extends State<CartItemsPage> {
     try {
       final response = await http.delete(
         Uri.parse(
-            'http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c/remove/$iD'),
+            'http://175.111.182.125:8083/cart/v1/$_cartId/remove/$iD'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -155,13 +167,13 @@ class ViewProductState extends State<CartItemsPage> {
         _showOverlay(context); // Show success overlay
         updatedQuantities.clear(); // Clear the tracking map
       } else {
-        print(
+        throw Exception(
             "Failed to Delete cart data: ${response.statusCode} - ${response.body}");
       }
     } catch (e) {
-      print("Error Deleting cart data: $e");
+      throw Exception("Error Deleting cart data: $e");
     }
-    fetchCartDataByID();
+    fetchCartDataByID(_cartId!);
   }
 
   /// Increment Quantity
@@ -206,9 +218,11 @@ class ViewProductState extends State<CartItemsPage> {
     await Future.delayed(const Duration(milliseconds: 500));
 
     Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const CartItemsPage()));
+        MaterialPageRoute(builder: (context) => const CartItemsPage()),
+    );
   }
 
+  /// Show an overlay popup on successful
   void _showOverlay(BuildContext context) {
     OverlayState overlayState = Overlay.of(context);
     OverlayEntry overlayEntry;
@@ -249,22 +263,6 @@ class ViewProductState extends State<CartItemsPage> {
     }
 
     return Scaffold(
-      // bottomNavigationBar: Container(
-      //   margin: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
-      //   decoration: const BoxDecoration(
-      //     borderRadius: BorderRadius.only(
-      //       topLeft: Radius.circular(6),
-      //       topRight: Radius.circular(6),
-      //       bottomRight: Radius.circular(6),
-      //       bottomLeft: Radius.circular(6),
-      //     ),
-      //     color: Colors.green,
-      //   ),
-      //   child: TextButton(
-      //     onPressed: () {},
-      //     child: const Text('Checkout'),
-      //   ),
-      // ),
       appBar: AppBar(
         title: const Text('Devansh Dairy'),
         backgroundColor: const Color(0xFFCDE8E5),
@@ -288,7 +286,7 @@ class ViewProductState extends State<CartItemsPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 Container(
                   width: MediaQuery.of(context).size.width * 0.9,
                   margin: const EdgeInsets.fromLTRB(0, 15, 0, 10),
@@ -303,10 +301,10 @@ class ViewProductState extends State<CartItemsPage> {
                     : SingleChildScrollView(
                         child: !_cartStatus
                             ? Container(
-                                // height: containerHeight,
                                 alignment: Alignment.bottomCenter,
 
-                                child: Container(
+                                /// Home page navigation button on empty cart
+                                child: SizedBox(
                                   width: 300,
                                   child: FloatingActionButton(
                                     onPressed: () {
@@ -341,6 +339,8 @@ class ViewProductState extends State<CartItemsPage> {
                                       onTap: () {
                                         (index);
                                       },
+
+                                      /// Product container
                                       child: Container(
                                         width:
                                             MediaQuery.of(context).size.width *
@@ -356,6 +356,8 @@ class ViewProductState extends State<CartItemsPage> {
                                         ),
                                         child: Row(
                                           children: [
+
+                                            /// Product Image
                                             Container(
                                               alignment: Alignment.center,
                                               // padding: const EdgeInsets.only(left: 10),
@@ -370,25 +372,18 @@ class ViewProductState extends State<CartItemsPage> {
                                                     fit: BoxFit.fill),
                                               ),
                                             ),
+
+                                            /// Product title, price, quantity & increment button, decrement button
                                             Container(
-                                              // alignment: Alignment.topLeft,
-                                              // padding: const EdgeInsets.only(left: 20),
-                                              margin: const EdgeInsets.only(
-                                                  left: 17),
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                      0, 5, 0, 5),
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.7,
-                                              // color: Colors.blue,
+                                              margin: const EdgeInsets.only(left: 17),
+                                              padding: const EdgeInsets.fromLTRB(0, 5, 0, 5),
                                               child: Column(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.start,
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
+                                                  /// Product Title
                                                   Padding(
                                                     padding: const EdgeInsets
                                                         .fromLTRB(0, 5, 0, 5),
@@ -406,87 +401,106 @@ class ViewProductState extends State<CartItemsPage> {
                                                             .center,
                                                     mainAxisAlignment:
                                                         MainAxisAlignment
-                                                            .center,
-                                                    children: [
+                                                            .spaceEvenly,
+                                                    children: <Widget>[
+
+                                                      /// Product price
                                                       SizedBox(
-                                                        width: 110,
+                                                        width: 60,
                                                         child: Row(
                                                           children: <Widget>[
-                                                            const Icon(Icons
-                                                                .currency_rupee),
+                                                            const Icon(Icons.currency_rupee),
                                                             Text(
-                                                              cartItemPrice[
-                                                                      index]
-                                                                  .toString(),
+                                                              cartItemPrice[index].toString(),
                                                               textAlign:
-                                                                  TextAlign
-                                                                      .start,
+                                                              TextAlign
+                                                                  .start,
                                                               style: const TextStyle(
-                                                                  fontSize: 19,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold),
+                                                                fontSize: 19,
+                                                                fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                              ),
                                                             ),
                                                           ],
                                                         ),
                                                       ),
-                                                      SizedBox(
-                                                        height: 30,
-                                                        width: 30,
-                                                        child:
-                                                            FloatingActionButton(
-                                                          heroTag:
-                                                              "minus_$index",
-                                                          onPressed: _itemsCount[
-                                                                      index] ==
-                                                                  0
-                                                              ? null
-                                                              : () {
-                                                                  setState(() {
-                                                                    _counterDecrement(
-                                                                        index);
-                                                                  });
-                                                                },
-                                                          backgroundColor:
-                                                              Colors.red,
-                                                          child: const Icon(
-                                                            Icons.remove,
-                                                            color: Colors.white,
-                                                          ),
-                                                        ),
+
+                                                      /// used for space
+                                                      const SizedBox(
+                                                        width: 40,
                                                       ),
-                                                      SizedBox(
-                                                        width: 80,
-                                                        child: Text(
-                                                          _itemsCount[index]
-                                                              .toString(),
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize: 17),
-                                                        ),
-                                                      ),
-                                                      SizedBox(
-                                                        width: 30,
-                                                        height: 30,
-                                                        child:
-                                                            FloatingActionButton(
-                                                          heroTag:
-                                                              "plus_$index",
-                                                          onPressed: () {
-                                                            // print('object fn');
-                                                            _counterIncrement(
-                                                                index);
-                                                          },
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                          child: const Icon(
-                                                            Icons.add,
-                                                            color: Colors.white,
-                                                          ),
-                                                        ),
-                                                      ),
+
+                                                      /// Product price, quantity & increment button, decrement button
+                                                      Row(
+                                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: <Widget>[
+
+                                                          /// Product quantity decrement
+                                                          SizedBox(
+                                                           height: 30,
+                                                           width: 30,
+                                                           child: FloatingActionButton(
+                                                             heroTag:
+                                                             "minus_$index",
+                                                             onPressed: _itemsCount[
+                                                             index] ==
+                                                                 0
+                                                                 ? null
+                                                                 : () {
+                                                               setState(() {
+                                                                 _counterDecrement(
+                                                                     index);
+                                                               });
+                                                             },
+                                                             backgroundColor:
+                                                             Colors.red,
+                                                             child: const Icon(
+                                                               Icons.remove,
+                                                               color: Colors.white,
+                                                             ),
+                                                           ),
+                                                         ),
+
+                                                          /// Product quantity
+                                                          SizedBox(
+                                                           width: 50,
+                                                           child: Text(
+                                                             _itemsCount[index]
+                                                                 .toString(),
+                                                             textAlign:
+                                                             TextAlign.center,
+                                                             style:
+                                                             const TextStyle(
+                                                                 fontSize: 17,
+                                                               fontWeight: FontWeight.bold,
+                                                             ),
+                                                           ),
+                                                         ),
+
+                                                          /// Product quantity increment
+                                                          SizedBox(
+                                                           width: 30,
+                                                           height: 30,
+                                                           child:
+                                                           FloatingActionButton(
+                                                             heroTag:
+                                                             "plus_$index",
+                                                             onPressed: () {
+                                                               _counterIncrement(
+                                                                   index);
+                                                             },
+                                                             backgroundColor:
+                                                             Colors.green,
+                                                             child: const Icon(
+                                                               Icons.add,
+                                                               color: Colors.white,
+                                                             ),
+                                                           ),
+                                                         ),
+                                                       ],
+                                                     ),
                                                     ],
                                                   ),
                                                 ],
@@ -504,7 +518,8 @@ class ViewProductState extends State<CartItemsPage> {
             ),
 
             /// Order Placed Button ////
-            Positioned(
+            _productData.isEmpty ? const Text('')
+                : Positioned(
               bottom: 10,
               left: 2,
               right: 2,
@@ -519,6 +534,7 @@ class ViewProductState extends State<CartItemsPage> {
                   );
                 },
                 child: Container(
+                  width: MediaQuery.of(context).size.width * 1,
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
                     borderRadius: BorderRadius.only(
@@ -543,4 +559,5 @@ class ViewProductState extends State<CartItemsPage> {
       ),
     );
   }
+
 }

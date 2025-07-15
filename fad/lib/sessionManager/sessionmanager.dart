@@ -4,6 +4,7 @@ class SessionManager {
   ///
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserId = 'user_id';
+  static const String _keyUserMobNumber = '';
   static const String _keyUserName = '';
   static const String _keyUserCartId = '';
   static const String _accessToken = '';
@@ -31,6 +32,18 @@ class SessionManager {
   Future<bool> getLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyIsLoggedIn) ?? false;
+  }
+
+  /// Set User Mobile number
+  Future<void> setUserMobNumber(String number) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString(_keyUserMobNumber, number);
+  }
+
+  /// Get User Mobile number
+  Future<String?> getUserMobNumber() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyUserMobNumber);
   }
 
   /// Set User Id
@@ -74,6 +87,7 @@ class SessionManager {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyIsLoggedIn);
     await prefs.remove(_keyUserId);
+    await prefs.remove(_keyUserMobNumber);
     await prefs.remove(_keyUserName);
     await prefs.remove(_keyUserCartId);
   }

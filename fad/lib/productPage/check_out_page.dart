@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../homePage/homepage.dart';
+import 'order_history.dart';
 
 void main() {
   runApp(
     const MaterialApp(
       home: CartCheckOutPage(),
       debugShowCheckedModeBanner: false,
-      color: Colors.green,
     ),
   );
 }
@@ -24,16 +25,24 @@ class CartCheckOutPage extends StatefulWidget {
 }
 
 class ViewProductState extends State<CartCheckOutPage> {
-  late String baseURL =
-      "http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c";
-  String orderURL = 'http://localhost:8083/order/v1/create';
+  final SessionManager _sessionManager = SessionManager();
+
+
+  final String _orderCreateURL = 'http://175.111.182.125:8083/order/v1/create';
   Map<String, dynamic> _productData = {};
   String _cartTotalPrice = '';
 
   /// Map to track updated quantities dynamically
-  Map<int, double> updatedQuantities = {};
+  // Map<int, double> _updatedQuantities = {};
   bool _cartStatus = false;
-  String? _accessToken;
+  String? cartId;
+  String _userId = '';
+  String _orderId = '';
+  // String? _accessToken;
+  bool isLoading = false;
+  bool isCartCreate = false;
+
+
 
   @override
   void dispose() {
@@ -43,28 +52,118 @@ class ViewProductState extends State<CartCheckOutPage> {
   @override
   void initState() {
     super.initState();
-    fetchCartDataByID();
+    getUserCartId();
+    getUserId();
   }
 
+
+
+
+  /// Get Cart id
+  Future<void> getUserCartId() async {
+
+    try {
+      String? id = await _sessionManager.getUserCartId();
+
+      if (id != null && id.isNotEmpty) {
+        cartId = id;
+        fetchCartDataByID();
+      } else {
+        throw ('Cart Id not found!');
+      }
+    } catch(e) {
+      // print(e);
+      // print(cartId);
+    }
+  }
+
+
+  /// Get User Id
+  Future<void> getUserId() async {
+    try {
+      String? id = await _sessionManager.getUserId();
+      if ( id != null && id.isNotEmpty) {
+        setState(() {
+          _userId = id;
+        });
+      } else {
+        throw ('User id not found!');
+      }
+    } catch(e) {
+      // print(e);
+      _showErrorSnackBar(e.toString());
+    }
+    // print(accessToken);
+  }
+
+
+
+
   /// On Error Throw callback
-  void _showErrorSnackBar(VoidCallback retryFunction) {
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Something went wrong.'),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => retryFunction, // Retry the operation
-        ),
-        duration:
-            const Duration(hours: 1), // Persistent until manually dismissed
+      const SnackBar(
+        content: Text('message'),
+        backgroundColor: Colors.redAccent,
       ),
+    );
+  }
+
+  /// on Register successfully
+  void showCustomSuccessDialog(BuildContext context) {
+    BuildContext? dialogContext;
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, anim1, anim2) {
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        dialogContext ??= context; // Capture dialog context only once
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(seconds: 2), () {
+            if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
+              Navigator.of(dialogContext!).pop();// Now safe
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const OrderList()),
+              );
+            }
+          });
+        });
+
+        return Transform.scale(
+          scale: animation.value,
+          child: Opacity(
+            opacity: animation.value,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text("Ok"),
+                ],
+              ),
+              content: const Text("Your Order has been placed successfully."),
+            ),
+          ),
+        );
+      },
     );
   }
 
   /// Get Product Data From API
   Future<void> fetchCartDataByID() async {
     try {
-      final response = await http.get(Uri.parse(baseURL));
+      final response = await http.get(Uri.parse("http://175.111.182.125:8083/cart/v1/$cartId"));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
@@ -84,20 +183,22 @@ class ViewProductState extends State<CartCheckOutPage> {
         throw Exception("Failed to load data");
       }
     } catch (e) {
-      _showErrorSnackBar(fetchCartDataByID);
+      _showErrorSnackBar(e.toString());
     }
   }
 
   /// Create Order According Cart Items
   Future<void> createOrder() async {
     try {
+
+      /// product map
       Map<String, dynamic> cartDetails = {
-        'cartId': '9bf2e2b6-69fa-4e43-8028-5fde80f11f9c',
-        'customerId': '2',
+        'cartId': cartId,
+        'customerId': _userId,
       };
 
       final response = await http.post(
-        Uri.parse(orderURL),
+        Uri.parse(_orderCreateURL),
         headers: {
           // 'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
@@ -106,32 +207,49 @@ class ViewProductState extends State<CartCheckOutPage> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        Map<String, dynamic> orderData = {};
+        setState(() {
+          isCartCreate = true;
+          isLoading = false;
+          orderData = jsonDecode(response.body);
+
+          _orderId = orderData['orderNumber'] ?? '';
+          // _onLoadingSuccessOverlay(context);
+        });
+        // showCustomSuccessDialog(context);
         print('Order created successfully:${response.body}');
+        print(_orderId);
       } else {
-        print(
+        throw Exception(
             'Failed to create Order;${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      _showErrorSnackBar(createOrder);
+      setState(() {
+        isLoading = false;
+      });
+      _showErrorSnackBar(e.toString());
+      print(e);
     }
   }
 
   /// Page refresh function
-  Future<void> _refreshPage() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+  // Future<void> _refreshPage() async {
+  //   await Future.delayed(const Duration(milliseconds: 500));
+  //
+  //   // Navigator.of(context).pushReplacement(
+  //   //     MaterialPageRoute(builder: (context) => const CartItemsPage()));
+  // }
 
-    // Navigator.of(context).pushReplacement(
-    //     MaterialPageRoute(builder: (context) => const CartItemsPage()));
-  }
 
-  void _showOverlay(BuildContext context) {
+  /// Show Overlay after click happen on checkout button
+  void _onLoadingShowOverlay(BuildContext context) {
     OverlayState overlayState = Overlay.of(context);
-    OverlayEntry overlayEntry;
+    late OverlayEntry overlayEntry;
 
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 220,
-        left: 100,
+        top: MediaQuery.of(context).size.height * 0.4 - 100,
+        left: 80,
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -140,7 +258,7 @@ class ViewProductState extends State<CartCheckOutPage> {
             padding: const EdgeInsets.all(30),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withOpacity(0.9),
             ),
             child: const CircularProgressIndicator(
               strokeWidth: 8,
@@ -153,10 +271,72 @@ class ViewProductState extends State<CartCheckOutPage> {
 
     overlayState.insert(overlayEntry);
 
-    Timer(const Duration(seconds: 2), () {
+    /// insert  another Overlay after success
+    if (isCartCreate) {
       overlayEntry.remove();
+      _onLoadingSuccessOverlay(context);
+    }
+  }
+
+  void _onLoadingSuccessOverlay(BuildContext context) {
+    OverlayState overlayState = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).size.height * 0.4 - 100,
+        left: MediaQuery.of(context).size.width * 0.4 - 100,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            alignment: Alignment.center,
+            width: MediaQuery.of(context).size.width * 0.7,
+            height: 170,
+            padding: const EdgeInsets.only(left: 30, right: 30, top: 15, bottom: 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withOpacity(0.9),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                const Icon(Icons.check_circle, color: Colors.green, size: 30),
+                const SizedBox(height: 10,),
+                const Flexible(
+                  fit: FlexFit.loose,
+                  child: Text("Your Order has been placed successfully."),
+                ),
+                const SizedBox(height: 13,),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Text("Order number : $_orderId",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlayState.insert(overlayEntry);
+
+    /// Show loading for at least 2 seconds, then navigate to the next page
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const OrderList()),
+      );
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -182,10 +362,7 @@ class ViewProductState extends State<CartCheckOutPage> {
         ),
       ),
       backgroundColor: const Color(0xFF8EB2B2),
-      body: RefreshIndicator(
-        /// Refresh Indicator
-        onRefresh: _refreshPage,
-        child: Stack(
+      body: Stack(
           children: <Widget>[
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -194,10 +371,8 @@ class ViewProductState extends State<CartCheckOutPage> {
                 Container(
                   width: MediaQuery.of(context).size.width * 0.9,
                   margin: const EdgeInsets.fromLTRB(0, 15, 0, 10),
-                  // color: Colors.blue,
-
                   child: const Text(
-                    "Your Cart",
+                    "Checkout",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                   ),
                 ),
@@ -210,8 +385,9 @@ class ViewProductState extends State<CartCheckOutPage> {
 
                             /// Button for Home page if cart is empty
                             ? Container(
+
                                 alignment: Alignment.bottomCenter,
-                                child: Container(
+                                child: SizedBox(
                                   width: 300,
                                   child: FloatingActionButton(
                                     onPressed: () {
@@ -375,12 +551,13 @@ class ViewProductState extends State<CartCheckOutPage> {
 
             /// Customer Details & Cart Total
             Positioned(
-              bottom: 55,
+              bottom: 60,
               left: 5,
               right: 5,
               child: Container(
                 width: MediaQuery.of(context).size.width * 1,
                 padding: const EdgeInsets.all(10),
+
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(5),
@@ -394,14 +571,6 @@ class ViewProductState extends State<CartCheckOutPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    /// Customer Name
-                    Text(
-                      'Dev',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
 
                     /// Cart Total Amount
                     Row(
@@ -501,41 +670,38 @@ class ViewProductState extends State<CartCheckOutPage> {
               bottom: 10,
               left: 1,
               right: 1,
-              child: TextButton(
-                onPressed: () async {
-                  await createOrder();
-                  _showOverlay(context);
-                  // print('Button clicked!');
-                  // await updateCartData();
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //       builder: (context) => const CheckOutPage()),
-                  // );
-                },
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                      bottomRight: Radius.circular(10),
-                      bottomLeft: Radius.circular(10),
-                    ),
-                    color: Colors.green,
+              child: isLoading?
+                  const Center(child: CircularProgressIndicator(),)
+                  : TextButton(
+                      onPressed: () async {
+                        setState(() {
+                        isLoading = true;
+                        });
+                        _onLoadingShowOverlay(context);
+                        await createOrder();
+                      },
+                      child: Container(
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                              bottomRight: Radius.circular(10),
+                              bottomLeft: Radius.circular(10),
+                            ),
+                            color: Colors.green,
+                          ),
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          // height: 50,
+                          child: const Text(
+                            "Place Order",
+                            style: TextStyle(fontSize: 19, color: Colors.white),
+                          ),
+                        ),
                   ),
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
-                  // height: 50,
-                  child: const Text(
-                    "Place Order",
-                    style: TextStyle(fontSize: 19, color: Colors.white),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
-      ),
     );
   }
 }

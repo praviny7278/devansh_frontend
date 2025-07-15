@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:fad/auth/login.dart';
+import 'package:fad/user_info_edit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../productPage/cart.dart';
@@ -12,274 +15,225 @@ import '../productPage/singleProduct.dart';
 import '../sessionManager/sessionmanager.dart';
 import '../setting.dart';
 
-void main() {
-  runApp(
-    const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Home(),
-    ),
-  );
+
+const String productBaseURL = 'http://175.111.182.125:8081/product/v1/products';
+const String customerBaseURL = 'http://175.111.182.125:8082/customer/v1/1';
+// const String productBaseURL = 'http://localhost:8081/product/v1/products';
+// const String customerBaseURL = 'http://localhost:8082/customer/v1/1';
+
+
+
+
+
+final connectivityProvider = StateProvider<bool>((ref) => true);
+
+///
+final sessionManagerProvider = Provider<SessionManager>((ref) {
+  return SessionManager();
+});
+
+final productProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final sessionManager = ref.read(sessionManagerProvider);
+
+  // Get stored access token
+  String? accessToken = await sessionManager.getAccessToken();
+
+
+  // If access token is null, set a new one
+  if (accessToken == null) {
+    accessToken = "mock_access_token_123"; // Replace with real token logic
+    await sessionManager.setAccessToken(accessToken);
+  }
+
+
+  return await fetchProductData(accessToken);
+});
+
+///
+final customerProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final sessionManager = ref.read(sessionManagerProvider);
+
+  // Get stored access token
+  String? accessToken = await sessionManager.getAccessToken();
+  String? userId = await sessionManager.getUserId();
+
+  // If access token is null, set a new one
+  if (accessToken == null) {
+    accessToken = "mock_access_token_123"; // Replace with real token logic
+    await sessionManager.setAccessToken(accessToken);
+  }
+
+  return await fetchCustomerData(accessToken, userId!);
+});
+
+
+
+
+/// Get Customer information
+Future<Map<String, dynamic>> fetchCustomerData(String? accessToken, String userId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('http://175.111.182.125:8082/customer/v1/$userId'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+
+        final customerData = jsonDecode(response.body);
+        return customerData;
+
+    } else if (response.statusCode == 401) {
+      throw ('Unauthorized: Invalid token');
+      // print('Unauthorized: Invalid token');
+    } else if (response.statusCode == 404) {
+      // print('Not Found: The resource does not exist');
+      throw ('Not Found: The resource does not exist');
+    } else {
+      // print('Failed to load data: ${response.reasonPhrase}');
+      throw ('Failed to load data: ${response.reasonPhrase}');
+    }
+  } catch (error) {
+     // _showErrorSnackBar(fetchCustomerData);
+    throw ('Failed to load data: ${error.toString()}');
+  }
 }
+
+/// Get Product information
+Future<List<dynamic>> fetchProductData(String? accessToken) async {
+  try {
+    final response = await http.get(
+      Uri.parse(productBaseURL),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final productData = jsonDecode(response.body);
+      // print(_productData.length);
+        return productData;
+    } else if (response.statusCode == 401) {
+      throw ('Unauthorized: Invalid token');
+      // print('Unauthorized: Invalid token');
+    } else if (response.statusCode == 404) {
+      // print('Not Found: The resource does not exist');
+      throw ('Not Found: The resource does not exist');
+    } else {
+      // print('Failed to load data: ${response.reasonPhrase}');
+      throw ('Failed to load data: ${response.reasonPhrase}');
+    }
+  } catch (error) {
+    // _showErrorSnackBar(fetchProductData);
+    throw ('Failed to load data: ${error.toString()}');
+  }
+}
+
+///
+Future<void> _updateConnectionStatus(ConnectivityResult result, WidgetRef ref, BuildContext context) async {
+  final hasConnection = result == ConnectivityResult.mobile || result == ConnectivityResult.wifi;
+
+  ref.read(connectivityProvider.notifier).state = hasConnection;
+
+  if (!hasConnection) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No connection'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+  }
+}
+
+
+
 
 class Home extends StatelessWidget {
   const Home({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    return const MyHomePage();
+    return  const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: MyHomePage(),
+    );
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends ConsumerStatefulWidget {
   const MyHomePage({super.key});
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final SessionManager _sessionManager = SessionManager();
+class _MyHomePageState extends ConsumerState<MyHomePage> {
   final TextEditingController searchController = TextEditingController();
   late StreamSubscription<ConnectivityResult> _subscription;
   final Connectivity _connectivity = Connectivity();
-  String _connectionStatus = 'Unknown';
-  bool _connectivityStatus = true;
 
-  final String productBaseURL = 'http://localhost:8081/product/v1/products';
 
-  final String customerBaseURL = 'http://localhost:8082/customer/v1/1';
-
-  Map<String, dynamic> _customerData = {};
-  List<dynamic> _productData = [];
+  //
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
-  String? _accessToken;
-  static const access_token =
-      'eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2dUh6YVUyNHEtODM2NktWNXpGcFBjR1VRQ3dGWDZzTkdySXpwN2o5SmlnIn0.eyJleHAiOjE3NDA2Njk0MzUsImlhdCI6MTc0MDY2OTEzNSwianRpIjoiNWJlMGNhZTMtMTdkNS00MjI3LWE1ZjgtOWNhOWEzZWE1OWIwIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9kZXZhbnNoIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjY2Y2QxYzk0LTYxY2QtNDJkNC1iZDA1LTYxNTZiNTUxOTg4YyIsInR5cCI6IkJlYXJlciIsImF6cCI6ImRldmFuc2gtYXV0aC1zZXJ2aWNlIiwic2lkIjoiNjQ2N2I4YjgtYzg2Yi00ZTA4LWJmOWEtNWI2OTU1OTJkN2IyIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vMTkyLjE2OC4wLjE4NDozMDAwLyJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJhZG1pbiIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciIsImRlZmF1bHQtcm9sZXMtZGV2YW5zaCJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6IkRldiBZYWRhdiIsInByZWZlcnJlZF91c2VybmFtZSI6ImRldl9hZG1pbiIsImdpdmVuX25hbWUiOiJEZXYiLCJmYW1pbHlfbmFtZSI6IllhZGF2In0.nQvtrnPORJalc06b2P9Vbp8J69cUiQJ2WOl4Gqufdd4nPZGKbjfyr-Gu6z0wdkTC8rCjUjzmyurw1Du-QmhXkfFjTG7FAo-jhfludpx5CIRxUktJsEBhS8exHbayuB1AdgzOzSsVr8X17IHYwBTHS2bg8_LP1XgC4D1MlrtvVlRUsMLjOoHwn6cHp_NTIGAd36ACg6J-XMtAumrkxre9QWDcmffFH1fAZcFZsqQh0KBANQPV6rF692uVXO5QQRDxclSdLmlnlyjuQQGgqlFZs63y2inLejZJ4dnV-uLLsVFH2LrbTHzSJlffxfLRkzrJvviYuL6KK3pgDGvNlQeW1w';
 
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
+
+
 
   @override
   void initState() {
     super.initState();
-
-    setAccessToken();
-
-    _subscription =
-        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
-    _checkInitialConnection();
-  }
-
-  Future<void> _checkInitialConnection() async {
-    ConnectivityResult result;
-    try {
-      result = await _connectivity.checkConnectivity();
-    } catch (e) {
-      print(e);
-      return;
-    }
-
-    if (!mounted) {
-      return Future.value(null);
-    }
-
-    return _updateConnectionStatus(result);
-  }
-
-  Future<void> _updateConnectionStatus(ConnectivityResult result) async {
-    setState(
-      () {
-        switch (result) {
-          case ConnectivityResult.wifi:
-          case ConnectivityResult.mobile:
-            _connectionStatus = 'Internet connected';
-            _connectivityStatus = true;
-            break;
-          case ConnectivityResult.none:
-            _connectionStatus = 'No internet connection';
-            _connectivityStatus = false;
-            break;
-          default:
-            _connectionStatus = 'Unknown';
-            _connectivityStatus = false;
-            break;
-        }
-      },
-    );
-    print('Connection Status: $_connectionStatus');
-    _showOverlay(context, _connectionStatus, _connectivityStatus);
-  }
-
-  Future<void> setAccessToken() async {
-    await _sessionManager.setAccessToken(access_token);
-    getAccessToken();
-  }
-
-  Future<void> getAccessToken() async {
-    _accessToken = await _sessionManager.getAccessToken();
-    fetchProductData();
-    fetchCustomerData();
-    // print(_accessToken);
-  }
-
-  /// On Error Throw callback
-  void _showErrorSnackBar(VoidCallback retryFunction) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Something went wrong.'),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => retryFunction, // Retry the operation
-        ),
-        duration:
-            const Duration(hours: 1), // Persistent until manually dismissed
-      ),
-    );
-
-    // print("work");
-  }
-
-  /// Get Customer information
-  Future<void> fetchCustomerData() async {
-    try {
-      final response = await http.get(
-        Uri.parse(customerBaseURL),
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
+    Future.microtask((){
+      ref.watch(productProvider);
+      _subscription = _connectivity.onConnectivityChanged.listen(
+              (result) => _updateConnectionStatus(result, ref, context),
       );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _customerData = jsonDecode(response.body);
-          // print(_customerData);
-        });
-      } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized: Invalid token');
-        // print('Unauthorized: Invalid token');
-      } else if (response.statusCode == 404) {
-        // print('Not Found: The resource does not exist');
-        throw Exception('Not Found: The resource does not exist');
-      } else {
-        // print('Failed to load data: ${response.reasonPhrase}');
-        throw Exception('Failed to load data: ${response.reasonPhrase}');
-      }
-    } catch (error) {
-      _showErrorSnackBar(fetchCustomerData);
-      throw Exception('Failed to load data: ${error.toString()}');
-    }
-  }
-
-  /// Get Product information
-  Future<void> fetchProductData() async {
-    try {
-      final response = await http.get(
-        Uri.parse(productBaseURL),
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _productData = jsonDecode(response.body);
-          // print(_productData.length);
-          // _searchResults = _data;
-        });
-      } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized: Invalid token');
-        // print('Unauthorized: Invalid token');
-      } else if (response.statusCode == 404) {
-        // print('Not Found: The resource does not exist');
-        throw Exception('Not Found: The resource does not exist');
-      } else {
-        // print('Failed to load data: ${response.reasonPhrase}');
-        throw Exception('Failed to load data: ${response.reasonPhrase}');
-      }
-    } catch (error) {
-      _showErrorSnackBar(fetchProductData);
-      throw Exception('Failed to load data: ${error.toString()}');
-    }
-  }
-
-  void _showOverlay(
-      BuildContext context, String text, bool connectivityStatus) {
-    OverlayState overlayState = Overlay.of(context);
-    OverlayEntry overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 5,
-        left: 10,
-        right: 10,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            alignment: Alignment.center,
-            padding:
-                const EdgeInsets.only(left: 10, right: 10, top: 4, bottom: 4),
-            decoration: BoxDecoration(
-              color: connectivityStatus ? Colors.green : Colors.red,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 19, color: Colors.white),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    connectivityStatus ? "" : overlayState.insert(overlayEntry);
-
-    Timer(const Duration(seconds: 2), () {
-      overlayEntry.remove();
     });
+    // setAccessToken();
+    //
+    // _subscription =
+    //     _connectivity.onConnectivityChanged.listen(_updateConnectionStatus as void Function(ConnectivityResult event)?);
+    // _checkInitialConnection();
   }
 
-  /// Page refresh function
-  Future<void> _refreshPage() async {
-    Future.delayed(const Duration(milliseconds: 500));
-    Navigator.of(context)
-        .pushReplacement(MaterialPageRoute(builder: (context) => const Home()));
+  @override
+  void dispose() {
+    searchController.dispose();
+    _subscription.cancel();
+    // customerProvider.dispose
+    super.dispose();
   }
 
-  void filterData(String query) {
+
+  ///
+  void filterData(String query, List<dynamic> productData) {
     if (query.isEmpty) {
       setState(() {
-        _searchResults = _productData;
+        _searchResults = productData;
         _isSearching = false;
       });
     } else {
       setState(() {
         _isSearching = true;
-        _searchResults = _productData
+        _searchResults = productData
             .where((item) => item['name']
                 .toString()
                 .toLowerCase()
                 .contains(query.toLowerCase()))
             .toList();
       });
-      print(_productData
-          .where((item) => item['name']
-              .toString()
-              .toLowerCase()
-              .contains(query.toLowerCase()))
-          .toList());
     }
   }
 
+  ///
   void clearSearch() {
     setState(() {
-      _searchResults = _productData;
+      // _searchResults = _productData;
       _isSearching = false;
       searchController.clear();
     });
@@ -287,14 +241,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    double containerHeight = 0.0;
 
-    if (screenHeight < 700) {
-      containerHeight = screenHeight * 0.69;
-    } else {
-      containerHeight = screenHeight * 0.73;
-    }
+    final productAsyncValue = ref.watch(productProvider);
+    final customerAsyncValue = ref.watch(customerProvider);
+    
+    ref.listen<bool>(connectivityProvider, (previous, next) {
+      if (!next) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No connection'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+        );
+      }
+    });
+
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return GestureDetector(
       onTap: () {
@@ -308,6 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
         resizeToAvoidBottomInset: false,
         extendBody: true,
         bottomNavigationBar: SafeArea(
+
           /// Bottom navigation buttons container
           child: Container(
             padding:
@@ -354,7 +318,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 /// Category Button with icon
                 FloatingActionButton(
                   onPressed: () {
-                    // print('Menu');
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -436,21 +399,89 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
           // backgroundColor: Colors.red,
-          /// User Name
-          title: Text(
-            _customerData['firstName'] ?? 'Not Provided',
-            textAlign: TextAlign.right,
+          /// Customer Name
+          title: customerAsyncValue.when(
+            data: (customerData) {
+                final name = customerData.isNotEmpty ? customerData['firstName'] : ['Hello!'];
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Text('Hello $name'),
+                    GestureDetector(
+                      onTap: (){
+                        if (!mounted) return;
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserInfoEditPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        margin: const EdgeInsets.only(left: 5.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          image: const DecorationImage(
+                            image: NetworkImage('assets/user-avatar.png'),
+                            fit: BoxFit.fill,
+                          ), // Handle null image
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            loading: () => const Text('Loading...'), // Show loading text
+            error: (error, stackTrace) => Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                const Text('Hello!'),
+                const SizedBox(width: 6,),
+                FloatingActionButton(
+                  onPressed: () {
+                    if (!mounted) return;
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(),
+                      ),
+                    );
+                  },
+                  heroTag: "User",
+                  tooltip: 'User',
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  mini: true,
+                  splashColor: Colors.white30,
+                  backgroundColor: Colors.white60,
+                  child: const Icon(
+                    Icons.person,
+                    size: 22,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ), // Show error message
           ),
         ),
         backgroundColor: const Color(0xFF7AB2B2),
         body: RefreshIndicator(
-          onRefresh: _refreshPage,
+          onRefresh: () async {
+            ref.refresh(customerProvider);
+            ref.refresh(productProvider);
+          },
           child: Stack(
             children: <Widget>[
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
+
                   /// Location and Search bar Container
                   Container(
                     height: 130,
@@ -463,13 +494,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     child: Column(
                       children: <Widget>[
+
                         /// Location Button and address container
                         Container(
                           padding: const EdgeInsets.only(left: 10),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: <Widget>[
+
                               /// Location Button
                               FloatingActionButton(
                                 onPressed: () {},
@@ -478,7 +511,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30)),
                                 mini: true,
-                                splashColor: Colors.green,
+                                splashColor: Colors.white10,
+                                backgroundColor: Colors.white70,
                                 child: const Icon(
                                   Icons.location_on_rounded,
                                   size: 22,
@@ -489,13 +523,14 @@ class _MyHomePageState extends State<MyHomePage> {
                               Container(
                                 width: MediaQuery.of(context).size.width * 0.7,
                                 margin: const EdgeInsets.fromLTRB(8, 5, 0, 0),
-                                child: Text(
-                                  _customerData['address'][0]['locality'] ??
-                                      'Not Provided',
-                                  textAlign: TextAlign.start,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                  ),
+                                child: customerAsyncValue.when(
+                                  data: (customerData) {
+                                    final address = customerData.isNotEmpty ? customerData['address'][0]['locality'] :
+                                        '';
+                                    return Text(address);
+                                  },
+                                  loading: () => const Text('Loading...'), // Show loading text
+                                  error: (error, stackTrace) => const Text(''), // Show error message
                                 ),
                               ),
                             ],
@@ -513,7 +548,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: TextField(
                               controller: searchController,
                               keyboardType: TextInputType.multiline,
-                              onChanged: filterData,
+                              onChanged:(value) =>  filterData(value, productAsyncValue.value ?? []),
                               decoration: InputDecoration(
                                 labelText: 'Search',
                                 prefixIcon: const Icon(Icons.search),
@@ -537,31 +572,35 @@ class _MyHomePageState extends State<MyHomePage> {
                   Container(
                     alignment: Alignment.center,
                     color: const Color(0xFF7AB2B2),
-                    height: (screenHeight * 1) - 254,
+                    height: (screenHeight * 1) - 253,
                     padding: const EdgeInsets.only(bottom: 0),
                     width: MediaQuery.of(context).size.width * 1,
                     child: _isSearching
 
                         /// On search view container
-                        ? ListView.builder(
-                            itemCount: _searchResults.length,
+                        ? productAsyncValue.when(
+                          data: (products) => ListView.builder(
+
+                            itemCount: _isSearching ? _searchResults.length : products.length,
                             itemBuilder: (context, index) {
-                              final item = _searchResults[index];
-                              final categoryName =
-                                  item[index]['name'] ?? 'Not Provided';
-                              final categoryImg =
-                                  item[index]['image'] ?? 'assets/milk.jpg';
-                              // print(_searchResults);
+                              final product = _isSearching ? _searchResults[index] : products[index];
+                              final productName =
+                                  product['name'] ?? 'Not Provided';
+                              final productImg =
+                                  product['image'] ?? 'assets/milk.jpg';
                               return GestureDetector(
+
                                 /// Navigation to the Product page onClick
                                 onTap: () {
-                                  // print(_searchResults[index]);
+                                  if (_isSearching) {
+                                    clearSearch();
+                                  }
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ViewSingleProduct(
-                                        dataName: item[index]['productId'],
-                                        dataCategory: "category",
+                                          dataName: product['name'],
+                                          dataCategory: product['catagories']
                                       ),
                                     ),
                                   );
@@ -579,7 +618,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                                     /// Product title
                                     title: Text(
-                                      categoryName,
+                                      productName,
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 2,
                                     ),
@@ -590,12 +629,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                       width: 40,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(5),
-                                        image: categoryImg != null
+                                        image: productImg != null
                                             ? DecorationImage(
-                                                image:
-                                                    NetworkImage(categoryImg),
-                                                fit: BoxFit.fill,
-                                              )
+                                          image:
+                                          NetworkImage(productImg),
+                                          fit: BoxFit.fill,
+                                        )
                                             : null,
                                       ),
                                     ),
@@ -603,95 +642,119 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               );
                             },
-                          )
+                          ),
+                          error: (error, stack) => const Center(
+                            child: Text('Product Not Found!'),
+                          ),
+                          loading: () => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
 
-                        /// Normal view container
-                        : GridView.builder(
-                            shrinkWrap: true,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 0,
-                              childAspectRatio: 0.76,
-                              crossAxisSpacing: 0,
-                            ),
-                            itemCount: _productData.length,
-                            itemBuilder: (context, index) {
-                              final prodTitle =
-                                  _productData[index]['name'] ?? "Not Provided";
-                              final prodImage = _productData[index]['image'] ??
-                                  "assets/milk.jpg";
-                              return GestureDetector(
-                                /// Navigation to the Product page onClick
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ViewSingleProduct(
-                                        dataName: _productData[index]['name'],
-                                        dataCategory: _productData[index]
-                                            ['catagories'],
-                                      ),
-                                    ),
-                                  );
-                                },
+                        /// Normal grid view container
+                        : productAsyncValue.when(
+                        data: (productData) => GridView.builder(
+                        // shrinkWrap: true,
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 0.76,
+                          crossAxisSpacing: 10,
+                        ),
+                        itemCount: productData.length,
+                        itemBuilder: (context, index) {
+                          final prodTitle =
+                              productData[index]['name'] ?? "Not Provided";
+                          final prodImage = productData[index]['image'] ??
+                              "assets/milk.jpg";
+                          return GestureDetector(
 
-                                /// Product title and image container
-                                child: Container(
-                                  margin:
-                                      const EdgeInsets.fromLTRB(10, 5, 10, 10),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    color: Colors.white.withOpacity(0.7),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      /// Product image
-                                      Container(
-                                        margin: const EdgeInsets.all(10),
-                                        height:
-                                            MediaQuery.of(context).size.height *
-                                                0.21,
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(5),
-                                          image: prodImage != null
-                                              ? DecorationImage(
-                                                  image:
-                                                      NetworkImage(prodImage),
-                                                  fit: BoxFit.fill,
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-
-                                      /// Product title
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 10,
-                                            right: 10,
-                                            top: 10,
-                                            bottom: 5),
-                                        child: Text(
-                                          '$prodTitle',
-                                          textAlign: TextAlign.start,
-                                          style: TextStyle(
-                                            color:
-                                                Colors.black45.withOpacity(0.9),
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          maxLines: 2,
-                                        ),
-                                      )
-                                    ],
+                            /// Navigation to the Product page onClick
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ViewSingleProduct(
+                                    dataName: productData[index]['name'],
+                                    dataCategory: productData[index]
+                                    ['catagories'],
                                   ),
                                 ),
                               );
                             },
-                          ),
+
+                            /// Product title and image container
+                            child: Card(
+                              elevation: 4,
+                              margin:
+                              const EdgeInsets.fromLTRB(10, 5, 10, 10),
+                              color: Colors.white.withOpacity(0.7),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: <Widget>[
+
+                                  /// Product image
+                                  Expanded(
+                                    child: ClipRRect (
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                      child: Image.network(
+                                          prodImage,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  ),
+
+                                  /// Product title
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 10,
+                                        right: 10,
+                                        top: 10,
+                                        bottom: 5),
+                                    child: Text(
+                                      '$prodTitle',
+                                      textAlign: TextAlign.start,
+                                      style: TextStyle(
+                                        color:
+                                        Colors.black45.withOpacity(0.9),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      maxLines: 2,
+                                    ),
+                                  )
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                        error: (Object error, StackTrace stackTrace) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Error loading data'),
+                            ElevatedButton(
+
+                              onPressed: () {
+                                // Reload the customer provider when error happens
+                                ref.refresh(customerProvider);
+                                ref.refresh(productProvider);
+                                print('object');
+                              },
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ), // Show error message,
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -701,4 +764,5 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
 }
