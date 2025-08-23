@@ -26,7 +26,7 @@ class ViewSingleProduct extends StatefulWidget {
 
 class ViewProductState extends State<ViewSingleProduct> {
   final SessionManager _sessionManager = SessionManager();
-  late String productBaseURL = 'http://175.111.182.125:8081';
+  late String productBaseURL = 'http://localhost:8081';
   Map<String, dynamic>? _data;
   String? _accessToken;
   bool isVisible = false;
@@ -50,37 +50,62 @@ class ViewProductState extends State<ViewSingleProduct> {
   @override
   void initState() {
     super.initState();
-    productBaseURL = 'http://175.111.182.125:8081/product/v1/product/${widget.dataName}';
+    productBaseURL = 'http://localhost:8081/product/v1/product/${widget.dataName}';
+    //
     getUserId();
-    fetchDataByName();
+    // initiate call
     getAccessToken();
-    // _showOverlay(context);
+
   }
 
-  /// On Error Throw callback
-  void _showErrorSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Something went wrong.'),
-      ),
-    );
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
   }
 
   /// Access The Token
   Future<void> getAccessToken() async {
-
     _accessToken = await _sessionManager.getAccessToken();
     setState(() {});
     // print(accessToken);
-    try {
-      String? token = await _sessionManager.getAccessToken();
-      setState(() {
-        _accessToken = token;
-      });
-      print(_accessToken);
-    } catch (e) {
-      print(e);
-    }
   }
 
   /// set User Cart Id
@@ -93,15 +118,18 @@ class ViewProductState extends State<ViewSingleProduct> {
   Future<void> getUserId() async {
     try {
       String? id = await _sessionManager.getUserId();
+
       if ( id != null && id.isNotEmpty) {
         setState(() {
           userId = id;
         });
+        fetchDataByName();
       } else {
         throw ('User id not found!');
       }
     } catch(e) {
       print(e);
+      _showErrorSnackBar(e.toString());
     }
     // print(accessToken);
   }
@@ -127,12 +155,12 @@ class ViewProductState extends State<ViewSingleProduct> {
       } else if (response.statusCode == 401) {
         throw ('Not Found: The resource does not exist');
       } else if (response.statusCode == 404) {
-        throw ('Failed to load data: ${response.reasonPhrase.toString()}');
+        throw ('Failed to load Product: ${response.reasonPhrase.toString()}');
       } else {
-        throw ("Failed to load data");
+        throw ("Failed to load Product");
       }
     } catch (e) {
-      _showErrorSnackBar();
+      _showErrorSnackBar(e.toString());
       setState(() {
         isLoading = false;
       });
@@ -145,14 +173,14 @@ class ViewProductState extends State<ViewSingleProduct> {
       isLoading = true;
     });
 
-    print('user Id: $userId');
+    print('user Id: $orderData');
     try {
       List<dynamic> productList = [];
       productList.add(orderData);
       String jsonBody = jsonEncode(productList);
 
       final response = await http.post(
-        Uri.parse('http://175.111.182.125:8083/cart/v1/$userId'),
+        Uri.parse('http://localhost:8083/cart/v1/$userId'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -171,12 +199,12 @@ class ViewProductState extends State<ViewSingleProduct> {
       } else if (response.statusCode == 401) {
         throw ('Not Found: The resource does not exist');
       } else if (response.statusCode == 404) {
-        throw ('Failed to load data: ${response.reasonPhrase.toString()}');
+        throw ('Failed to create cart: ${response.reasonPhrase.toString()}');
       } else {
-        throw ("Failed to load data");
+        throw ("Failed to add product");
       }
     } catch (e) {
-      _showErrorSnackBar();
+      _showErrorSnackBar(e.toString());
       setState(() {
         isLoading = false;
       });
@@ -234,7 +262,8 @@ class ViewProductState extends State<ViewSingleProduct> {
     return Scaffold(
 
       /// Button to add product in the cart
-      bottomNavigationBar: Container(
+      bottomNavigationBar: isLoading ? const Text('')
+          : Container(
         margin: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.only(
@@ -277,6 +306,7 @@ class ViewProductState extends State<ViewSingleProduct> {
               'quantity': productQty,
               'custom': {"frequency" : customData},
             };
+            print('data: $productData');
 
             await createCart(productData);
             if (isCartCreated) {

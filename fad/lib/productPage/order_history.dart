@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:fad/productPage/order_list_item_history.dart';
 import 'package:fad/sessionManager/sessionmanager.dart';
+import 'package:fad/setting.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -23,7 +24,11 @@ class OrderList extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Setting(),
+                ),
+              );
             },
           ),
         ),
@@ -54,19 +59,47 @@ class _OrderHistoryListState extends State<OrderHistoryList> {
   bool _isLoading = false;
   String _userId = '';
 
-  /// On Error Throw callback
-  void _showErrorSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Something went wrong.'),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => getOrderList(), // Retry the operation
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
         ),
-        duration:
-            const Duration(hours: 1), // Persistent until manually dismissed
-      ),
-    );
+      );
+    }
   }
 
   /// Get User Id
@@ -87,13 +120,15 @@ class _OrderHistoryListState extends State<OrderHistoryList> {
       }
     } catch(e) {
       print(e);
+      //
+      _showErrorSnackBar(e.toString());
     }
     // print(accessToken);
   }
 
   /// Get Orders List
   Future<void> getOrderList() async {
-    final String orderURL = 'http://175.111.182.125:8083/order/v1/customer/$_userId';
+    final String orderURL = 'http://localhost:8083/order/v1/customer/$_userId';
     print('user Id: $_userId');
 
     try {
@@ -113,7 +148,7 @@ class _OrderHistoryListState extends State<OrderHistoryList> {
         }
       } else {
         // Throw an exception for non-success HTTP status codes
-        throw Exception('Failed to load data: ${response.reasonPhrase}');
+        throw ('Failed to load data: ${response.reasonPhrase}');
       }
     } catch (error) {
       // Handle errors (e.g., network issues, JSON parsing errors)
@@ -123,11 +158,7 @@ class _OrderHistoryListState extends State<OrderHistoryList> {
       print(error);
 
       // Show an error message to the user (you can replace this with a custom widget)
-      SnackbarUtils.showErrorSnackBar(
-        context: context,
-        message: 'Something went wrong!',
-        onRetry: getOrderList,
-      );
+     _showErrorSnackBar(error.toString());
     }
   }
 

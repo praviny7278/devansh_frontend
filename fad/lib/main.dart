@@ -9,29 +9,73 @@ import 'package:fad/splashScreen/splash_screen.dart';
 import 'package:fad/user_info_edit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+//
 import 'auth/login.dart';
 import 'auth/otp_validation.dart';
+//
+//
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
-void main() {
   runApp( ProviderScope(child: MyApp()));
 }
+
 
 class MyApp extends StatelessWidget {
    MyApp({super.key});
 
 
-
-  @override
+   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Home(),
+      home: SplashScreen(),
     );
   }
 }
 
+// import 'package:flutter/material.dart';
+
+class ErrorExample extends StatelessWidget {
+  const ErrorExample({super.key});
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Error Example")),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            try {
+              // simulate error
+              throw Exception("Something went wrong!");
+            } catch (e) {
+              _showError(context, e.toString()); // show error in Scaffold
+            }
+          },
+          child: const Text("Trigger Error"),
+        ),
+      ),
+    );
+  }
+}
 
 
 

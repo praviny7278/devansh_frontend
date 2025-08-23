@@ -5,6 +5,7 @@ import 'package:fad/productPage/order_history.dart';
 import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:fad/user_info_edit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
@@ -59,12 +60,43 @@ class _MySettingsState extends State<MySettings> {
 
 
   /// Show the error
-  Future<void> _onError(String message) async {
+  void _onError(String message) async {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
         ),
       );
     }
@@ -130,7 +162,7 @@ class _MySettingsState extends State<MySettings> {
     // print('log Stat : $_isLoggedIn');
     try {
       final response = await http.get(
-        Uri.parse('http://175.111.182.125:8082/customer/v1/$_userId'),
+        Uri.parse('http://localhost:8082/customer/v1/$_userId'),
         headers: {
           'Authorization': 'Bearer Token',
           'Content-Type': 'application/json',
@@ -176,9 +208,7 @@ class _MySettingsState extends State<MySettings> {
   Widget build(BuildContext context) {
     // double screenWidth = MediaQuery.of(context).size.width;
     // double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
-
         extendBodyBehindAppBar: false,
         resizeToAvoidBottomInset: false,
         extendBody: true,
@@ -551,67 +581,71 @@ class _MySettingsState extends State<MySettings> {
                 ),
 
                 /// User log-out
-                GestureDetector(
-                  onTap: () async {
-                    // await _sessionManager.clearSession();
-                    // Navigator.pop(context);
-                    // Navigator.push(
-                    //   context, MaterialPageRoute( builder: (context) => const Home()),
-                    // );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Not working now!'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                      padding:
-                      const EdgeInsets.only(top: 14, bottom: 14, left: 9),
-                      margin: const EdgeInsets.only(
-                        top: 5,
-                        bottom: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.45),
-                            spreadRadius: 1,
-                            blurRadius: 5,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white,
-                            Colors.white,
-                            Colors.white,
-                            Colors.white,
-                            Colors.white,
-                            Colors.white,
-                          ],
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          const Icon(Icons.login_outlined),
-                          Container(
-                            margin: const EdgeInsets.only(left: 10),
-                            child: const Text(
-                              "Log out",
-                              style: TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.w900),
+                Consumer(
+                  builder: (context, ref, child) {
+                    return GestureDetector(
+                        onTap: () async {
+                          await _sessionManager.clearSession();
+
+                          ref.invalidate(productProvider);
+                          ref.invalidate(customerProvider);
+
+                          if (!context.mounted) return;
+
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const Home()),
+                                (route) => false,
+                          );
+                        },
+                        child: Container(
+                            padding:
+                            const EdgeInsets.only(top: 14, bottom: 14, left: 9),
+                            margin: const EdgeInsets.only(
+                              top: 5,
+                              bottom: 2,
                             ),
-                          ),
-                        ],
-                      )),
-                ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.45),
+                                  spreadRadius: 1,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white,
+                                  Colors.white,
+                                  Colors.white,
+                                  Colors.white,
+                                  Colors.white,
+                                  Colors.white,
+                                ],
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: <Widget>[
+                                const Icon(Icons.login_outlined),
+                                Container(
+                                  margin: const EdgeInsets.only(left: 10),
+                                  child: const Text(
+                                    "Log out",
+                                    style: TextStyle(
+                                        fontSize: 17, fontWeight: FontWeight.w900),
+                                  ),
+                                ),
+                              ],
+                            )),
+                    );
+                  },
+                )
+
               ],
             ),
           ),

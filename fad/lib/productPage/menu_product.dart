@@ -33,17 +33,11 @@ class MenuItems extends StatefulWidget {
 class _ItemState extends State<MenuItems> {
   final ScrollController _scrollController = ScrollController();
   final SessionManager _sessionManager = SessionManager();
-
   List<dynamic> _itemsList = [];
   int limit = 5;
   String sortBy = '';
   String sortOption = "";
-
   String? accessToken;
-  final productUrl = 'http://175.111.182.125:8081/product/v1/products';
-
-
-  String? _accessToken;
   final productUrl = 'http://localhost:8081/product/v1/products';
 
 
@@ -55,10 +49,10 @@ class _ItemState extends State<MenuItems> {
       if (_scrollController.position.maxScrollExtent ==
           _scrollController.position.pixels) {
         limit += 5;
-        fetProductData();
+        fetchAlbum();
       }
     });
-    fetProductData(); // Fetch data when the widget is initialized
+    fetchAlbum(); // Fetch data when the widget is initialized
   }
 
   @override
@@ -67,70 +61,184 @@ class _ItemState extends State<MenuItems> {
     super.dispose();
   }
 
-  /// Access The Token
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
+  }
+
+  /// Get access token
   Future<void> getAccessToken() async {
     try {
-      String? token = await _sessionManager.getAccessToken();
-      setState(() {
-        _accessToken = token;
-      });
-      print(_accessToken);
-    } catch (e) {
-      print(e);
+      accessToken = await _sessionManager.getAccessToken();
+      setState(() {});
+      print(accessToken);
+    } catch(e) {
+      _showErrorSnackBar(e.toString());
     }
   }
 
-  /// Get Access Token
-  Future<void> fetProductData() async {
-    final baseURL = Uri.parse(productUrl);
-    final response = await http.get(
-      (baseURL),
-//       headers: {
-//         'Authorization': 'Bearer $accessToken',
-//         'Content-Type': 'application/json',
-//       },
-    );
+  /// Get All Products
+  Future<void> fetchAlbum() async {
 
-    if (response.statusCode == 200) {
-      setState(() {
-        _itemsList.clear();
-        _itemsList = jsonDecode(response.body);
-        // print(_itemsList['limit']);
-      });
-    } else if (response.statusCode == 401) {
-      throw Exception('Not Found: The resource does not exist');
-    } else if (response.statusCode == 404) {
-      throw Exception('Failed to load data: ${response.reasonPhrase}');
-    } else {
-      throw Exception('Failed to load Product.');
+    try {
+      final baseURL = Uri.parse(productUrl);
+      final response = await http.get(
+        (baseURL),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _itemsList.clear();
+          _itemsList = jsonDecode(response.body);
+          print(_itemsList);
+        });
+      } else if (response.statusCode == 401) {
+        throw ('Not Found: The resource does not exist');
+      } else if (response.statusCode == 404) {
+        throw ('Failed to load data: ${response.reasonPhrase}');
+      } else {
+        throw ('Failed to load Product.');
+      }
+    } catch(e) {
+      _showErrorSnackBar(e.toString());
     }
+
+
   }
 
-  /// Page refresh function
-  Future<void> _refreshPage() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    fetProductData(); // Fetch data again when the page is refreshed
-    print('object');
-  }
 
-  /// Sort product according Ascending and Descending
-  void sortProduct(String option) {
+
+
+  /// sort product according
+  void sortProduct(String option, {bool local = true}) {
     setState(() {
       sortOption = option;
 
-      if (option == "a_to_z") {
-        setState(() {
-          sortBy = 'desc';
-        });
-        fetProductData();
-      } else if (option == "z_to_a") {
-        setState(() {
+      switch (option) {
+        case "a_to_z":
           sortBy = 'asc';
-        });
-        fetProductData();
-      } else if (option == "low_to_high") {
-      } else if (option == "high_to_low") {}
+          if (local) {
+            _itemsList.sort((a, b) => a['name']
+                .toString()
+                .toLowerCase()
+                .compareTo(b['name'].toString().toLowerCase()));
+          }
+          break;
+
+        case "z_to_a":
+          sortBy = 'desc';
+          if (local) {
+            _itemsList.sort((a, b) => b['name']
+                .toString()
+                .toLowerCase()
+                .compareTo(a['name'].toString().toLowerCase()));
+          }
+          break;
+
+        case "low_to_high":
+          sortBy = 'price_asc';
+          if (local) {
+            _itemsList.sort((a, b) => double.parse(a['price']['price'].toString())
+                .compareTo(double.parse(b['price']['price'].toString())));
+          }
+          break;
+
+        case "high_to_low":
+          sortBy = 'price_desc';
+          if (local) {
+            _itemsList.sort((a, b) => double.parse(b['price']['price'].toString())
+                .compareTo(double.parse(a['price']['price'].toString())));
+          }
+          break;
+      }
     });
+
+    if (!local) {
+      fetchAlbum(); // hit backend for sorted data
+    }
+    print('Sorted by: $sortBy (local = $local)');
+  }
+
+  ///
+  void _showOverlay(BuildContext context, String text) {
+    OverlayState overlayState = Overlay.of(context);
+    OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 59,
+        left: MediaQuery.of(context).size.width * 0.25,
+        right: MediaQuery.of(context).size.width * 0.25,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            alignment: Alignment.center,
+            padding:
+                const EdgeInsets.only(left: 10, right: 10, top: 4, bottom: 4),
+            decoration: BoxDecoration(
+              color: Colors.greenAccent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(text),
+          ),
+        ),
+      ),
+    );
+
+    overlayState.insert(overlayEntry);
+
+    Timer(const Duration(seconds: 2), () {
+      overlayEntry.remove();
+    });
+  }
+
+  ///
+  Future<void> _refreshPage() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    fetchAlbum(); // Fetch data again when the page is refreshed
+    print('object');
   }
 
   @override
@@ -138,7 +246,7 @@ class _ItemState extends State<MenuItems> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFFCDE8E5).withOpacity(0.4),
-        title: const Text('Product'),
+        title: const Text('Products'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -146,7 +254,6 @@ class _ItemState extends State<MenuItems> {
           },
         ),
         actions: [
-          /// Option for sorting in various type
           PopupMenuButton<String>(
               icon: const Icon(Icons.sort),
               onSelected: (option) => sortProduct(option),
@@ -165,11 +272,8 @@ class _ItemState extends State<MenuItems> {
         onRefresh: _refreshPage,
         child: _itemsList.isEmpty
             ? const Center(
-                /// Refresh indicator
                 child: CircularProgressIndicator(),
               )
-
-            /// Generating the gridview
             : GridView.builder(
                 // controller: _scrollController,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -180,7 +284,6 @@ class _ItemState extends State<MenuItems> {
                 ),
                 itemCount: _itemsList.length,
                 itemBuilder: (context, index) {
-                  /// Declaration and Assign value in variables
                   final productName =
                       _itemsList[index]['name'] ?? "Not Provided";
                   final productPrice =
@@ -188,16 +291,7 @@ class _ItemState extends State<MenuItems> {
                   // final productPrice = '34' ?? 'Unknown';
                   final productImg =
                       _itemsList[index]['image'] ?? 'assets/milk.jpg';
-
                   return GestureDetector(
-
-
-                  /// Product container
-                  return GridTile(
-                    child: Stack(
-                      children: <Widget>[
-                        GestureDetector(
-
                           onTap: () {},
                           child: Card(
                             color: Colors.white.withOpacity(0.6),
@@ -208,7 +302,6 @@ class _ItemState extends State<MenuItems> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
-
                                 /// Product Image
                                 Expanded(
                                   child: Padding(
@@ -232,38 +325,7 @@ class _ItemState extends State<MenuItems> {
                                         /// Title container
                                         Container(
                                         width: MediaQuery.of(context).size.width * 1,
-
-                                /// Product image
-                                Container(
-                                  height: 145,
-                                  // width: 140,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(5),
-                                    image: productImg != null
-                                        ? DecorationImage(
-                                            image: NetworkImage(productImg),
-                                            fit: BoxFit.fill,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-
-                                /// Product Title and Price container
-                                Container(
-                                  color: Colors.transparent,
-                                  width: MediaQuery.of(context).size.width * 1,
-                                  margin: const EdgeInsets.fromLTRB(5, 8, 5, 0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: <Widget>[
-                                      /// Product Title container
-                                      Container(
-                                        width:
-                                            MediaQuery.of(context).size.width *
-
                                         alignment: Alignment.topLeft,
-
-                                        /// Product Title
                                         child: Text(
                                           '$productName',
                                           textAlign: TextAlign.start,
@@ -274,24 +336,11 @@ class _ItemState extends State<MenuItems> {
                                             maxLines: 2,
                                           ),
                                         ),
-
                                         /// Price container
                                         Container(
                                         color: Colors.transparent, width:
                                         MediaQuery.of(context).size.width * 1,
                                         margin: const EdgeInsets.fromLTRB(0, 3, 5, 0),
-
-                                      ),
-
-                                      /// Product Price container
-                                      Container(
-                                        color: Colors.transparent,
-                                        width:
-                                            MediaQuery.of(context).size.width *
-                                                1,
-                                        margin: const EdgeInsets.fromLTRB(
-                                            0, 3, 5, 0),
-
                                         child: Row(
                                           mainAxisAlignment: MainAxisAlignment.start,
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,14 +354,10 @@ class _ItemState extends State<MenuItems> {
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 2,
                                             ),
-
-                                            /// Product currency icon
                                             const Icon(
                                               Icons.currency_rupee,
                                               size: 17,
                                             ),
-
-                                            /// Product price
                                             Text(
                                               productPrice,
                                               textAlign: TextAlign.start,
@@ -325,21 +370,9 @@ class _ItemState extends State<MenuItems> {
                                             ),
                                           ],
                                         ),
-
                                         ),
                                       ],
                                     ),
-
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                /// Button container for add to cart and favorite
-                                Container(
-                                  margin: const EdgeInsets.only(
-                                    top: 0,
-
                                   ),
                                 /// Buttons for Add to cart & Buy
                                 Padding(
@@ -348,7 +381,6 @@ class _ItemState extends State<MenuItems> {
                                     mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                     children: <Widget>[
-                                      /// Button for add Product in Cart
                                       ElevatedButton(
                                         onPressed: () {
                                           String text = 'Added to Favorite';
@@ -414,29 +446,6 @@ class _ItemState extends State<MenuItems> {
                                           style: TextStyle(fontSize: 16),
                                         ),
                                       ),
-
-
-                                      /// Button for add Product in Favorite
-                                      ElevatedButton(
-                                        onPressed: () {},
-                                        style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.fromLTRB(
-                                                9, 0, 9, 0),
-                                            shape: const RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.horizontal(
-                                                right: Radius.circular(7),
-                                                left: Radius.circular(7),
-                                              ),
-                                            ),
-                                            backgroundColor: Colors.red,
-                                            elevation: 15),
-                                        child: const Text(
-                                          "Favorite",
-                                          style: TextStyle(fontSize: 16),
-                                        ),
-                                      ),
-
                                     ],
                                   ),
                                 )

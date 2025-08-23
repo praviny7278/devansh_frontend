@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:fad/auth/login.dart';
+import 'package:fad/network_check.dart';
 import 'package:flutter/material.dart';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:http/http.dart' as http;
@@ -41,8 +43,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _areaNameController = TextEditingController();
   final _pinCodeController = TextEditingController();
 
+  ///
+  final NetworkService _network = NetworkService();
+
   /// register URL for the user/customer
-  final String userRegUrl = 'http://175.111.182.125:8082/customer/v1/customer';
+  final String userRegUrl = 'http://localhost:8082/customer/v1/customer';
   bool _isLoading = false;
   bool _isNewUserRegistered = false;
   bool _isButtonEnabled = false;
@@ -58,6 +63,9 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
+
+
 
 
   ///
@@ -184,13 +192,30 @@ class _RegisterPageState extends State<RegisterPage> {
     _areaNameController.dispose();
     _cityNameController.dispose();
     _pinCodeController.dispose();
+    _networkService.dispose();
     super.dispose();
   }
+
+  late final NetworkService _networkService;
 
   @override
   void initState() {
     super.initState();
+    _networkService = NetworkService();
+    _networkService.startMonitoring((result) {
+      if (result == ConnectivityResult.none) {
+        print("❌ No internet connection");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No internet connection")),
+        );
+      } else {
+        print("✅ Connected via ${result.name}");
+      }
+    });
   }
+
+
+
 
 
   @override

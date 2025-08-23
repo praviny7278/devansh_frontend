@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-
 import 'package:fad/sessionManager/sessionmanager.dart';
 import 'package:fad/setting.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +33,6 @@ class EditUserDetails extends StatefulWidget {
 }
 
 class _EditUserState extends State<EditUserDetails> {
-
   final SessionManager _sessionManager = SessionManager();
 
   final _formKey = GlobalKey<FormState>();
@@ -61,11 +59,6 @@ class _EditUserState extends State<EditUserDetails> {
 
 
 
-  final TextEditingController searchController = TextEditingController();
-  final SessionManager _sessionManager = SessionManager();
-  String? _accessToken;
-
-
   @override
   void dispose() {
     _firsNameController.dispose();
@@ -79,25 +72,12 @@ class _EditUserState extends State<EditUserDetails> {
     super.dispose();
   }
 
-  /// Access The Token
-  Future<void> getAccessToken() async {
-    try {
-      String? token = await _sessionManager.getAccessToken();
-      setState(() {
-        _accessToken = token;
-      });
-      print(_accessToken);
-    } catch (e) {
-      print(e);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
 
     getUserId();
-    getUserInfo();
+
   }
 
 
@@ -117,14 +97,47 @@ class _EditUserState extends State<EditUserDetails> {
   // }
 
 
-  /// on Error message
-  Future<void> _onError(String message) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
   }
 
 
@@ -148,19 +161,20 @@ class _EditUserState extends State<EditUserDetails> {
         setState(() {
           _userId = id;
         });
+        getUserInfo();
       } else {
         throw ('Login first!');
       }
 
     } catch(e) {
-      _onError('$e');
+      _showErrorSnackBar(e.toString());
       print(e);
     }
   }
 
   ///  Update User details
   Future<void> userUpdate (Map<String, dynamic> newUserDetails) async {
-    final String userRegUrl = 'http://175.111.182.125:8082/customer/v1/$_userId';
+    final String userRegUrl = 'http://localhost:8082/customer/v1/$_userId';
 
     try {
 
@@ -191,13 +205,13 @@ class _EditUserState extends State<EditUserDetails> {
       setState(() {
         _isLoading = false;
       });
-      _onError('$e');
+      _showErrorSnackBar('$e');
     }
   }
 
   /// Get User details
   Future<void> getUserInfo() async {
-    final String userUrl = 'http://175.111.182.125:8082/customer/v1/$_userId';
+    final String userUrl = 'http://localhost:8082/customer/v1/$_userId';
 
     setState(() {
       _isLoading = true;
@@ -243,7 +257,7 @@ class _EditUserState extends State<EditUserDetails> {
 
     } catch(e) {
       print(e);
-      _onError(e.toString());
+      _showErrorSnackBar(e.toString());
     }
   }
 
@@ -351,6 +365,7 @@ class _EditUserState extends State<EditUserDetails> {
 
                     ),
                     keyboardType: TextInputType.emailAddress,
+                    readOnly: true,
                     // validator: (value) {
                     //   final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
                     //   return emailRegex.hasMatch(value ?? '')
@@ -369,8 +384,9 @@ class _EditUserState extends State<EditUserDetails> {
                     const InputDecoration(
                       labelText: 'Phone Number',
                     ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 10,
+                    // keyboardType: TextInputType.number,
+                    // maxLength: 10,
+                    readOnly: true,
                   ),
 
                   const SizedBox(height: 12),

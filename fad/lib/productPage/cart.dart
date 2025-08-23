@@ -37,9 +37,11 @@ class ViewProductState extends State<CartItemsPage> {
   bool _cartStatus = false;
   String? _accessToken;
   String? _cartId = "";
+  bool _isLoading = true;
 
   @override
   void dispose() {
+    // searchController.dispose();
     super.dispose();
   }
 
@@ -47,6 +49,49 @@ class ViewProductState extends State<CartItemsPage> {
   void initState() {
     super.initState();
     getUserCartId();
+  }
+
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
   }
 
   /// Get Cart id
@@ -58,52 +103,28 @@ class ViewProductState extends State<CartItemsPage> {
       if (id != null && id.isNotEmpty) {
         _cartId = id;
             fetchCartDataByID(_cartId!);
-        print(_cartId);
+        print('cart Id: $_cartId');
       } else {
         throw ('Login first!');
       }
     } catch(e) {
-
-    }
-
-
-  }
-
-  /// On Error Throw callback
-  Future<void> _onError(String message) async {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
-  }
-
-  /// Get Access Token
-  Future<void> getAccessToken() async {
-    try {
-      String? token = await _sessionManager.getAccessToken();
-      setState(() {
-        _accessToken = token;
-      });
-      print(_accessToken);
-    } catch (e) {
-      print(e);
+      _showErrorSnackBar(e.toString());
     }
   }
 
   /// Get Product Data From API
   Future<void> fetchCartDataByID(String cartId) async {
     try {
-      final response = await http.get(Uri.parse('http://175.111.182.125:8083/cart/v1/$cartId'));
+      final response = await http.get(Uri.parse('http://localhost:8083/cart/v1/$cartId'));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
+            _isLoading = false;
+
             _productData = jsonDecode(response.body);
             _cartStatus = _productData['status'];
-            print(_cartStatus);
+            print(_productData['lineItems'].length);
+            print(_productData['lineItems']);
             _itemsCount = List<double>.from(
                 _productData['lineItems'].map((item) => item['quantity']));
             cartItemPrice = List<double>.from(_productData['lineItems'].map(
@@ -112,17 +133,21 @@ class ViewProductState extends State<CartItemsPage> {
           });
         } else {
           // Handle empty response body
-          throw Exception('Empty response body');
+          throw ('Empty Cart');
         }
       } else {
-        throw Exception("Failed to load data");
+        throw ("Failed to load data");
       }
     } catch (e) {
       print('Error fetching data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorSnackBar(e.toString());
     }
   }
 
-  /// Update Cart Data - Only Changed Items
+  /// Update Cart Data - Changeable items quantity only
   Future<void> updateCartData() async {
     List<Map<String, dynamic>> updatedCartItems = [];
 
@@ -138,7 +163,7 @@ class ViewProductState extends State<CartItemsPage> {
     try {
       final response = await http.put(
         Uri.parse(
-            'http://175.111.182.125:8083/cart/v1/$_cartId/updateCart'),
+            'http://localhost:8083/cart/v1/$_cartId/updateCart'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -149,7 +174,7 @@ class ViewProductState extends State<CartItemsPage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Cart updated successfully: ${response.body}");
         // if ((context as Element).mounted) {
-        //   _showOverlay(context); // Show success overlay
+          _showOverlay(context); // Show success overlay
         // }
         updatedQuantities.clear(); // Clear the tracking map
       } else {
@@ -158,7 +183,7 @@ class ViewProductState extends State<CartItemsPage> {
       }
     } catch (e) {
       print("Error updating cart: $e");
-      _onError(e.toString());
+      _showErrorSnackBar(e.toString());
     }
   }
 
@@ -167,7 +192,7 @@ class ViewProductState extends State<CartItemsPage> {
     try {
       final response = await http.delete(
         Uri.parse(
-            'http://175.111.182.125:8083/cart/v1/$_cartId/remove/$iD'),
+            'http://localhost:8083/cart/v1/$_cartId/remove/$iD'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -249,7 +274,7 @@ class ViewProductState extends State<CartItemsPage> {
           child: Container(
             padding: const EdgeInsets.all(15),
             color: Colors.green,
-            child: const Text("working"),
+            child: const Text("Item removed"),
           ),
         ),
       ),
@@ -308,7 +333,7 @@ class ViewProductState extends State<CartItemsPage> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                   ),
                 ),
-                _productData.isEmpty
+                _isLoading
                     ? const CircularProgressIndicator()
                     : SingleChildScrollView(
                         child: !_cartStatus
@@ -418,7 +443,7 @@ class ViewProductState extends State<CartItemsPage> {
 
                                                       /// Product price
                                                       SizedBox(
-                                                        width: 60,
+                                                        width: 92,
                                                         child: Row(
                                                           children: <Widget>[
                                                             const Icon(Icons.currency_rupee),
@@ -428,7 +453,7 @@ class ViewProductState extends State<CartItemsPage> {
                                                               TextAlign
                                                                   .start,
                                                               style: const TextStyle(
-                                                                fontSize: 19,
+                                                                fontSize: 18,
                                                                 fontWeight:
                                                                 FontWeight
                                                                     .bold,
@@ -530,7 +555,7 @@ class ViewProductState extends State<CartItemsPage> {
             ),
 
             /// Order Placed Button ////
-            _productData.isEmpty ? const Text('')
+            (_productData.isNotEmpty || !_cartStatus || _isLoading) ? const Text('')
                 : Positioned(
               bottom: 10,
               left: 2,

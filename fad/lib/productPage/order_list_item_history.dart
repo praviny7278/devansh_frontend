@@ -27,7 +27,7 @@ class OrderItemListPage extends StatefulWidget {
 }
 
 class OrderItemsState extends State<OrderItemListPage> {
-  late String orderItemsUrl = 'http://175.111.182.125:8083/order/v1';
+  late String orderItemsUrl = 'http://localhost:8083/order/v1';
   Map<String, dynamic>? _itemsList;
   bool _isLoading = false;
 
@@ -37,6 +37,49 @@ class OrderItemsState extends State<OrderItemListPage> {
     orderItemsUrl = '$orderItemsUrl/${widget.orderNumber}';
     _isLoading = true;
     getOrderItems();
+  }
+
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
   }
 
   Future<void> getOrderItems() async {
@@ -59,6 +102,8 @@ class OrderItemsState extends State<OrderItemListPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
+      //
+      _showErrorSnackBar(e.toString());
       // print('Error fetching order items: $e');
     }
   }

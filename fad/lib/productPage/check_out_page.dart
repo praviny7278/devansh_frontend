@@ -25,18 +25,10 @@ class CartCheckOutPage extends StatefulWidget {
 }
 
 class ViewProductState extends State<CartCheckOutPage> {
-
   final SessionManager _sessionManager = SessionManager();
 
 
-  final String _orderCreateURL = 'http://175.111.182.125:8083/order/v1/create';
-
-  late String baseURL =
-      "http://localhost:8083/cart/v1/9bf2e2b6-69fa-4e43-8028-5fde80f11f9c";
-  String orderURL = 'http://localhost:8083/order/v1/create';
-  final SessionManager _sessionManager = SessionManager();
-
-
+  final String _orderCreateURL = 'http://localhost:8083/order/v1/create';
   Map<String, dynamic> _productData = {};
   String _cartTotalPrice = '';
 
@@ -48,7 +40,6 @@ class ViewProductState extends State<CartCheckOutPage> {
   String _orderId = '';
   // String? _accessToken;
   bool isLoading = false;
-  bool isCartCreate = false;
 
 
 
@@ -80,8 +71,8 @@ class ViewProductState extends State<CartCheckOutPage> {
         throw ('Cart Id not found!');
       }
     } catch(e) {
-      // print(e);
-      // print(cartId);
+      print(e);
+      _showErrorSnackBar(e.toString());
     }
   }
 
@@ -98,7 +89,7 @@ class ViewProductState extends State<CartCheckOutPage> {
         throw ('User id not found!');
       }
     } catch(e) {
-      // print(e);
+      print(e);
       _showErrorSnackBar(e.toString());
     }
     // print(accessToken);
@@ -107,85 +98,104 @@ class ViewProductState extends State<CartCheckOutPage> {
 
 
 
-  /// On Error Throw callback
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('message'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-  }
+  /// Show the error
+  void _showErrorSnackBar(String message) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
 
+          // action button
+          // action: SnackBarAction(
+          //   label: "UNDO",
+          //   textColor: Colors.yellow,
+          //   onPressed: () {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(content: Text("Undo clicked")),
+          //     );
+          //   },
+          // ),
+
+          // Layout behavior
+          behavior: SnackBarBehavior.floating, // floating or fixed
+          margin: const EdgeInsets.all(16),   // margin when floating
+          padding: const EdgeInsets.only(left: 12, right: 12, top: 6, bottom: 6),  // padding inside snackbar
+          // width: 350,                         // optional: fixed width
+
+          // Shape & clipping
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.hardEdge,        // how edges are clipped
+
+          // Dismiss & duration
+          dismissDirection: DismissDirection.horizontal, // swipe direction
+          duration: const Duration(seconds: 3),          // auto-hide time
+
+          // Animation
+          showCloseIcon: true, // adds a close "X" icon
+          closeIconColor: Colors.white,      // padding inside snackbar
+        ),
+      );
+    }
+  }
 
   /// on Register successfully
-  void showCustomSuccessDialog(BuildContext context) {
-    BuildContext? dialogContext;
-
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "Dismiss",
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (ctx, anim1, anim2) {
-        return const SizedBox.shrink();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        dialogContext ??= context; // Capture dialog context only once
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Future.delayed(const Duration(seconds: 2), () {
-            if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
-              Navigator.of(dialogContext!).pop();// Now safe
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const OrderList()),
-              );
-            }
-          });
-        });
-
-        return Transform.scale(
-          scale: animation.value,
-          child: Opacity(
-            opacity: animation.value,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text("Ok"),
-                ],
-              ),
-              content: const Text("Your Order has been placed successfully."),
-            ),
-          ),
-        );
-      },
-    );
-
-  /// Get Access Token
-  Future<void> getAccessToken() async {
-    try {
-      String? token = await _sessionManager.getAccessToken();
-      setState(() {
-        _accessToken = token;
-      });
-      print(_accessToken);
-    } catch (e) {
-      print(e);
-    }
-
-  }
+  // void showCustomSuccessDialog(BuildContext context) {
+  //   BuildContext? dialogContext;
+  //
+  //   showGeneralDialog(
+  //     context: context,
+  //     barrierDismissible: true,
+  //     barrierLabel: "Dismiss",
+  //     barrierColor: Colors.black.withOpacity(0.5),
+  //     transitionDuration: const Duration(milliseconds: 300),
+  //     pageBuilder: (ctx, anim1, anim2) {
+  //       return const SizedBox.shrink();
+  //     },
+  //     transitionBuilder: (context, animation, secondaryAnimation, child) {
+  //       dialogContext ??= context; // Capture dialog context only once
+  //
+  //       WidgetsBinding.instance.addPostFrameCallback((_) {
+  //         Future.delayed(const Duration(seconds: 2), () {
+  //           if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
+  //             Navigator.of(dialogContext!).pop();// Now safe
+  //             Navigator.push(
+  //               context,
+  //               MaterialPageRoute(builder: (context) => const OrderList()),
+  //             );
+  //           }
+  //         });
+  //       });
+  //
+  //       return Transform.scale(
+  //         scale: animation.value,
+  //         child: Opacity(
+  //           opacity: animation.value,
+  //           child: AlertDialog(
+  //             shape: RoundedRectangleBorder(
+  //               borderRadius: BorderRadius.circular(16),
+  //             ),
+  //             title: const Row(
+  //               children: [
+  //                 Icon(Icons.check_circle, color: Colors.green),
+  //                 SizedBox(width: 8),
+  //                 Text("Ok"),
+  //               ],
+  //             ),
+  //             content: const Text("Your Order has been placed successfully."),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   /// Get Product Data From API
   Future<void> fetchCartDataByID() async {
     try {
-      final response = await http.get(Uri.parse("http://175.111.182.125:8083/cart/v1/$cartId"));
+      final response = await http.get(Uri.parse("http://localhost:8083/cart/v1/$cartId"));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
@@ -209,6 +219,7 @@ class ViewProductState extends State<CartCheckOutPage> {
     }
   }
 
+
   /// Create Order According Cart Items
   Future<void> createOrder() async {
     try {
@@ -231,16 +242,13 @@ class ViewProductState extends State<CartCheckOutPage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         Map<String, dynamic> orderData = {};
         setState(() {
-          isCartCreate = true;
-          isLoading = false;
           orderData = jsonDecode(response.body);
 
           _orderId = orderData['orderNumber'] ?? '';
           // _onLoadingSuccessOverlay(context);
         });
-        // showCustomSuccessDialog(context);
+        // _onLoadingShowOverlay(context);
         print('Order created successfully:${response.body}');
-        print(_orderId);
       } else {
         throw Exception(
             'Failed to create Order;${response.statusCode} - ${response.body}');
@@ -263,7 +271,7 @@ class ViewProductState extends State<CartCheckOutPage> {
   // }
 
 
-  /// Show Overlay after click happen on checkout button
+  /// Show Overlay after click on checkout button
   void _onLoadingShowOverlay(BuildContext context) {
     OverlayState overlayState = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -292,12 +300,14 @@ class ViewProductState extends State<CartCheckOutPage> {
     );
 
     overlayState.insert(overlayEntry);
-
     /// insert  another Overlay after success
-    if (isCartCreate) {
+    createOrder().then((_) {
       overlayEntry.remove();
       _onLoadingSuccessOverlay(context);
-    }
+    }).catchError((onError) {
+      overlayEntry.remove();
+      print(onError);
+    });
   }
 
   void _onLoadingSuccessOverlay(BuildContext context) {
@@ -351,10 +361,13 @@ class ViewProductState extends State<CartCheckOutPage> {
     /// Show loading for at least 2 seconds, then navigate to the next page
     Future.delayed(const Duration(seconds: 3), () {
       overlayEntry.remove();
-      Navigator.push(
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const OrderList()),
+            (Route<dynamic> route) => false, // Remove all previous routes
       );
+
     });
   }
 
@@ -693,14 +706,14 @@ class ViewProductState extends State<CartCheckOutPage> {
               left: 1,
               right: 1,
               child: isLoading?
-                  const Center(child: CircularProgressIndicator(),)
+                  const Center(child: Text(''),)
                   : TextButton(
                       onPressed: () async {
                         setState(() {
                         isLoading = true;
                         });
                         _onLoadingShowOverlay(context);
-                        await createOrder();
+                        // await createOrder();
                       },
                       child: Container(
                           alignment: Alignment.center,
