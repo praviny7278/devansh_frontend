@@ -17,7 +17,7 @@ import '../setting.dart';
 
 
 // const String productBaseURL = 'http://175.111.182.125:8081/product/v1/products';
-const String productBaseURL = 'http://localhost:8081/product/v1/products';
+const String productBaseURL = 'http://175.111.182.125:8081/product/v1/products';
 
 
 
@@ -72,7 +72,7 @@ final customerProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) 
 Future<Map<String, dynamic>> fetchCustomerData(String? accessToken, String userId) async {
   try {
     final response = await http.get(
-      Uri.parse('http://localhost:8082/customer/v1/$userId'),
+      Uri.parse('http://175.111.182.125:8082/customer/v1/$userId'),
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',

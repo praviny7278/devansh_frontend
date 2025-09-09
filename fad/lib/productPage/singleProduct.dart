@@ -26,7 +26,7 @@ class ViewSingleProduct extends StatefulWidget {
 
 class ViewProductState extends State<ViewSingleProduct> {
   final SessionManager _sessionManager = SessionManager();
-  late String productBaseURL = 'http://localhost:8081';
+  late String productBaseURL = 'http://175.111.182.125:8081';
   Map<String, dynamic>? _data;
   String? _accessToken;
   bool isVisible = false;
@@ -50,11 +50,14 @@ class ViewProductState extends State<ViewSingleProduct> {
   @override
   void initState() {
     super.initState();
-    productBaseURL = 'http://localhost:8081/product/v1/product/${widget.dataName}';
+    productBaseURL = 'http://175.111.182.125:8081/product/v1/product/${widget.dataName}';
     //
-    getUserId();
+
     // initiate call
     getAccessToken();
+
+    //
+    fetchDataByName();
 
   }
 
@@ -123,7 +126,7 @@ class ViewProductState extends State<ViewSingleProduct> {
         setState(() {
           userId = id;
         });
-        fetchDataByName();
+
       } else {
         throw ('User id not found!');
       }
@@ -180,7 +183,7 @@ class ViewProductState extends State<ViewSingleProduct> {
       String jsonBody = jsonEncode(productList);
 
       final response = await http.post(
-        Uri.parse('http://localhost:8083/cart/v1/$userId'),
+        Uri.parse('http://175.111.182.125:8083/cart/v1/$userId'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -308,14 +311,20 @@ class ViewProductState extends State<ViewSingleProduct> {
             };
             print('data: $productData');
 
-            await createCart(productData);
-            if (isCartCreated) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CartItemsPage()),
-              );
+            await getUserId();
 
-              _showOverlay(context);
+            if (userId.isNotEmpty) {
+              await createCart(productData);
+              if (isCartCreated) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CartItemsPage()),
+                );
+
+                _showOverlay(context);
+              }
+            } else {
+              _showErrorSnackBar('Login first!');
             }
 
             // print(productData);

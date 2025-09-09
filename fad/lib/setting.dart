@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:fad/productPage/fav_items.dart';
 import 'package:fad/productPage/order_history.dart';
 import 'package:fad/sessionManager/sessionmanager.dart';
@@ -8,13 +9,106 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 
 import 'auth/login.dart';
 import 'homePage/homepage.dart';
+//
+// final FlutterLocalNotificationsPlugin notificationsPlugin =
+// FlutterLocalNotificationsPlugin();
 
-void main() {
+void main() async {
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+
+
+  AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+    if (!isAllowed) {
+      AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+  });
+
+  await AwesomeNotifications().initialize(
+    null, // Use app icon or pass drawable resource like 'resource://drawable/res_app_icon'
+    [
+      NotificationChannel(
+        channelKey: 'basic',
+        channelName: 'Basic Notifications',
+        channelDescription: 'Notification channel for tests',
+        importance: NotificationImportance.Max,
+        channelShowBadge: true,
+      )
+    ],
+    debug: true,
+  );
+
+  /// Request permission if not granted
+  // if (!await AwesomeNotifications().isNotificationAllowed()) {
+  //   await AwesomeNotifications.requestPermissionToSendNotifications();
+  // }
+
+
+  AwesomeNotifications().setListeners(
+      onActionReceivedMethod: (ReceivedAction action) async {
+        if (action.buttonKeyPressed == 'ACCEPT') {
+          debugPrint("✅ User pressed Accept");
+        } else if (action.buttonKeyPressed == 'REJECT') {
+          debugPrint("❌ User pressed Reject");
+        } else {
+          debugPrint("🔔 Notification tapped");
+        }
+      }
+  );
+
+
   runApp(const Setting());
 }
+
+
+
+
+//
+// Future<void> showActionNotification() async {
+//   const AndroidNotificationDetails androidDetails =
+//   AndroidNotificationDetails(
+//     'action_channel_id', // 🔑 always use a NEW unique channel id
+//     'Action Notifications',
+//     channelDescription: 'Channel for notifications with action buttons',
+//     importance: Importance.max,
+//     priority: Priority.high,
+//     playSound: true,
+//     styleInformation: BigTextStyleInformation(
+//       'Do you want to accept this request?', // forces expanded style
+//     ),
+//     actions: <AndroidNotificationAction>[
+//       AndroidNotificationAction(
+//         'accept', // must match callback id
+//         '✅ Accept',
+//         showsUserInterface: true,
+//       ),
+//       AndroidNotificationAction(
+//         'reject',
+//         '❌ Reject',
+//         showsUserInterface: true,
+//       ),
+//     ],
+//   );
+//
+//   const NotificationDetails details = NotificationDetails(android: androidDetails);
+//
+//   await notificationsPlugin.show(
+//     0,
+//     'Friend Request',
+//     'Do you want to accept?',
+//     details,
+//   );
+// }
+
+
+
+
 
 class Setting extends StatelessWidget {
   const Setting({super.key});
@@ -57,6 +151,7 @@ class _MySettingsState extends State<MySettings> {
     _getUserId();
     _getUserLogStatus();
   }
+
 
 
   /// Show the error
@@ -162,7 +257,7 @@ class _MySettingsState extends State<MySettings> {
     // print('log Stat : $_isLoggedIn');
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8082/customer/v1/$_userId'),
+        Uri.parse('http://175.111.182.125:8082/customer/v1/$_userId'),
         headers: {
           'Authorization': 'Bearer Token',
           'Content-Type': 'application/json',
@@ -402,13 +497,92 @@ class _MySettingsState extends State<MySettings> {
                           Container(
                             margin: const EdgeInsets.only(left: 10),
                             child: const Text(
-                              "Favorite",
+                              "WishList",
                               style: TextStyle(
                                   fontSize: 17, fontWeight: FontWeight.w900),
                             ),
                           ),
                         ],
                       )),
+                ),
+
+                /// Navigate to Subscription page
+                GestureDetector(
+                  onTap: () async {
+                    // Navigator.push(
+                    //     context,
+                    //     MaterialPageRoute(
+                    //         builder: (context) => const FavoriteProducts(),
+                    //     ),
+                    // );
+                    AwesomeNotifications().createNotification(
+                      content: NotificationContent(
+                        id: 1,
+                        channelKey: 'basic',
+                        title: 'Friend Request',
+                        body: 'Do you want to accept?',
+                      ),
+                      actionButtons: [
+                        NotificationActionButton(
+                          key: 'ACCEPT',
+                          label: '✅ Accept',
+                        ),
+                        NotificationActionButton(
+                          key: 'REJECT',
+                          label: '❌ Reject',
+                        ),
+                      ],
+                    );
+
+                  },
+                  child: Container(
+                      padding:
+                      const EdgeInsets.only(top: 14, bottom: 14, left: 9),
+                      margin: const EdgeInsets.only(
+                        top: 5,
+                        bottom: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.45),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white,
+                            Colors.white,
+                            Colors.white,
+                            Colors.white,
+                            Colors.white,
+                            Colors.white,
+                          ],
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.subject_sharp,
+                            color: Colors.black,
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(left: 10),
+                            child: const Text(
+                              "Product subscription",
+                              style: TextStyle(
+                                  fontSize: 17, fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ),
                 ),
 
                 /// Navigate to oder history page

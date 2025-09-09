@@ -174,7 +174,7 @@ class _EditUserState extends State<EditUserDetails> {
 
   ///  Update User details
   Future<void> userUpdate (Map<String, dynamic> newUserDetails) async {
-    final String userRegUrl = 'http://localhost:8082/customer/v1/$_userId';
+    final String userRegUrl = 'http://175.111.182.125:8082/customer/v1/$_userId';
 
     try {
 
@@ -211,7 +211,7 @@ class _EditUserState extends State<EditUserDetails> {
 
   /// Get User details
   Future<void> getUserInfo() async {
-    final String userUrl = 'http://localhost:8082/customer/v1/$_userId';
+    final String userUrl = 'http://175.111.182.125:8082/customer/v1/$_userId';
 
     setState(() {
       _isLoading = true;
