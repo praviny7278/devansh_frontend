@@ -38,7 +38,7 @@ class _ItemState extends State<MenuItems> {
   String sortBy = '';
   String sortOption = "";
   String? accessToken;
-  final productUrl = 'http://localhost:8081/product/v1/products';
+  final productUrl = 'http://175.111.182.125:8081/product/v1/products';
 
 
   @override
@@ -264,7 +264,8 @@ class _ItemState extends State<MenuItems> {
                         value: "low_to_high", child: Text("Low to High")),
                     const PopupMenuItem(
                         value: "high_to_low", child: Text("High to Low")),
-                  ]),
+              ],
+          ),
         ],
       ),
       backgroundColor: const Color(0xFF7AB2B2),
@@ -293,6 +294,8 @@ class _ItemState extends State<MenuItems> {
                       _itemsList[index]['image'] ?? 'assets/milk.jpg';
                   return GestureDetector(
                           onTap: () {},
+                          // elevation: 1,
+                          // clipBehavior: Clip.antiAlias,
                           child: Card(
                             color: Colors.white.withOpacity(0.6),
                             shape: RoundedRectangleBorder(
@@ -300,7 +303,7 @@ class _ItemState extends State<MenuItems> {
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: <Widget>[
                                 /// Product Image
                                 Expanded(
@@ -324,7 +327,7 @@ class _ItemState extends State<MenuItems> {
                                       children: <Widget>[
                                         /// Title container
                                         Container(
-                                        width: MediaQuery.of(context).size.width * 1,
+                                        // // width: MediaQuery.of(context).size.width * 1,
                                         alignment: Alignment.topLeft,
                                         child: Text(
                                           '$productName',
@@ -333,43 +336,24 @@ class _ItemState extends State<MenuItems> {
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold),
                                             overflow: TextOverflow.ellipsis,
-                                            maxLines: 2,
+                                            maxLines: 1,
                                           ),
                                         ),
                                         /// Price container
                                         Container(
-                                        color: Colors.transparent, width:
-                                        MediaQuery.of(context).size.width * 1,
-                                        margin: const EdgeInsets.fromLTRB(0, 3, 5, 0),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            const Text(
-                                              'Price : ',
-                                              textAlign: TextAlign.start,
-                                              style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 2,
-                                            ),
-                                            const Icon(
-                                              Icons.currency_rupee,
-                                              size: 17,
-                                            ),
-                                            Text(
-                                              productPrice,
-                                              textAlign: TextAlign.start,
-                                              style: const TextStyle(
+                                          color: Colors.transparent, width:
+                                          MediaQuery.of(context).size.width * 1,
+                                          margin: const EdgeInsets.fromLTRB(0, 3, 5, 0),
+                                          child: Text(
+                                            'Price : ₹$productPrice',
+                                            textAlign: TextAlign.start,
+                                            style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 2,
                                             ),
-                                          ],
-                                        ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 2,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -381,41 +365,8 @@ class _ItemState extends State<MenuItems> {
                                     mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                     children: <Widget>[
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          String text = 'Added to Favorite';
-                                          _showOverlay(context, text);
-                                          // Navigator.push(
-                                          //   context,
-                                          //   MaterialPageRoute(
-                                          //     builder: (context) =>
-                                          //         ViewSingleProduct(
-                                          //       dataId: _itemsList['results']
-                                          //           [index]['id'],
-                                          //       dataCategory: "Shirt",
-                                          //     ),
-                                          //   ),
-                                          // );
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.fromLTRB(
-                                                2, 0, 2, 0),
-                                            shape: const RoundedRectangleBorder(
-                                              borderRadius:
-                                              BorderRadius.horizontal(
-                                                right: Radius.circular(10),
-                                                left: Radius.circular(10),
-                                              ),
-                                            ),
-                                            backgroundColor: Colors.white.withOpacity(0.6),
-
-                                        ),
-                                        child: const Icon(
-                                          Icons.favorite,
-                                          color: Colors.red,
-                                        )
-                                      ),
-                                      ElevatedButton(
+                                      /// Button to Buy
+                                      FilledButton(
                                         onPressed: () {
                                           Navigator.push(
                                             context,
@@ -430,21 +381,19 @@ class _ItemState extends State<MenuItems> {
                                             ),
                                           );
                                         },
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.all(0),
-                                          shape: const RoundedRectangleBorder(
-                                            borderRadius:
-                                            BorderRadius.horizontal(
-                                              left: Radius.circular(7),
-                                              right: Radius.circular(7),
-                                            ),
-                                          ),
-                                          elevation: 15,
-                                        ),
                                         child: const Text(
                                           "Buy",
                                           style: TextStyle(fontSize: 16),
                                         ),
+                                      ),
+                                      /// Button Add to wishList
+                                      IconButton(
+                                        tooltip: 'Favorite',
+                                        onPressed: () {
+                                          String text = 'Added to wishlist';
+                                          _showOverlay(context, text);
+                                        },
+                                        icon: const Icon(Icons.favorite_border),
                                       ),
                                     ],
                                   ),

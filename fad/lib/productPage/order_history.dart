@@ -128,7 +128,7 @@ class _OrderHistoryListState extends State<OrderHistoryList> {
 
   /// Get Orders List
   Future<void> getOrderList() async {
-    final String orderURL = 'http://localhost:8083/order/v1/customer/$_userId';
+    final String orderURL = 'http://175.111.182.125:8083/order/v1/customer/$_userId';
     print('user Id: $_userId');
 
     try {

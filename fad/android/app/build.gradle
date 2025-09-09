@@ -23,9 +23,10 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+
 android {
     namespace = "com.example.fad"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk 33
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -46,7 +47,17 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+
+        manifestPlaceholders = [
+                onesignal_app_id: "0b422fec-006a-4c2c-8c3d-9ece719f6164",
+        ]
+
     }
+
+
+
+
+
 
     buildTypes {
         release {

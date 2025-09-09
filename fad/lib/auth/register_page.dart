@@ -47,7 +47,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final NetworkService _network = NetworkService();
 
   /// register URL for the user/customer
-  final String userRegUrl = 'http://localhost:8082/customer/v1/customer';
+  final String userRegUrl = 'http://175.111.182.125:8082/customer/v1/customer';
   bool _isLoading = false;
   bool _isNewUserRegistered = false;
   bool _isButtonEnabled = false;

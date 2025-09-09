@@ -115,7 +115,7 @@ class ViewProductState extends State<CartItemsPage> {
   /// Get Product Data From API
   Future<void> fetchCartDataByID(String cartId) async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:8083/cart/v1/$cartId'));
+      final response = await http.get(Uri.parse('http://175.111.182.125:8083/cart/v1/$cartId'));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
@@ -163,7 +163,7 @@ class ViewProductState extends State<CartItemsPage> {
     try {
       final response = await http.put(
         Uri.parse(
-            'http://localhost:8083/cart/v1/$_cartId/updateCart'),
+            'http://175.111.182.125:8083/cart/v1/$_cartId/updateCart'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -192,7 +192,7 @@ class ViewProductState extends State<CartItemsPage> {
     try {
       final response = await http.delete(
         Uri.parse(
-            'http://localhost:8083/cart/v1/$_cartId/remove/$iD'),
+            'http://175.111.182.125:8083/cart/v1/$_cartId/remove/$iD'),
         headers: {
           "Content-Type": "application/json",
           // "Authorization": "Bearer $accessToken",
@@ -368,8 +368,7 @@ class ViewProductState extends State<CartItemsPage> {
                                         _productData['lineItems'][index]
                                             ['product']['name'];
                                     final productImage =
-                                        _productData['lineItems'][index]
-                                                ['product']['image'] ??
+
                                             'assets/milk.jpg';
 
                                     return GestureDetector(
@@ -555,7 +554,7 @@ class ViewProductState extends State<CartItemsPage> {
             ),
 
             /// Order Placed Button ////
-            (_productData.isNotEmpty || !_cartStatus || _isLoading) ? const Text('')
+            (_productData.isEmpty || !_cartStatus || _isLoading) ? const Text('')
                 : Positioned(
               bottom: 10,
               left: 2,

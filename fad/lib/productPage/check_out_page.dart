@@ -28,7 +28,7 @@ class ViewProductState extends State<CartCheckOutPage> {
   final SessionManager _sessionManager = SessionManager();
 
 
-  final String _orderCreateURL = 'http://localhost:8083/order/v1/create';
+  final String _orderCreateURL = 'http://175.111.182.125:8083/order/v1/create';
   Map<String, dynamic> _productData = {};
   String _cartTotalPrice = '';
 
@@ -195,7 +195,7 @@ class ViewProductState extends State<CartCheckOutPage> {
   /// Get Product Data From API
   Future<void> fetchCartDataByID() async {
     try {
-      final response = await http.get(Uri.parse("http://localhost:8083/cart/v1/$cartId"));
+      final response = await http.get(Uri.parse("http://175.111.182.125:8083/cart/v1/$cartId"));
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
           setState(() {
@@ -310,6 +310,7 @@ class ViewProductState extends State<CartCheckOutPage> {
     });
   }
 
+  /// Show Overlay after Cart create successfully button
   void _onLoadingSuccessOverlay(BuildContext context) {
     OverlayState overlayState = Overlay.of(context);
     late OverlayEntry overlayEntry;

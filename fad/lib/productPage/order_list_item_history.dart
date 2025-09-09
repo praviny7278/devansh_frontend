@@ -27,7 +27,7 @@ class OrderItemListPage extends StatefulWidget {
 }
 
 class OrderItemsState extends State<OrderItemListPage> {
-  late String orderItemsUrl = 'http://localhost:8083/order/v1';
+  late String orderItemsUrl = 'http://175.111.182.125:8083/order/v1';
   Map<String, dynamic>? _itemsList;
   bool _isLoading = false;
 

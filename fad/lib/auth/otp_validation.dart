@@ -50,7 +50,7 @@ class _PinputExampleState extends State<OtpValidationPage> {
   String? _userMobNumber;
   bool _validation = false;
   bool _isLoading = false;
-  final baseURL = 'http://localhost:9095/auth/v1/validateOTP';
+  final baseURL = 'http://175.111.182.125:9095/auth/v1/validateOTP';
 
 
 
